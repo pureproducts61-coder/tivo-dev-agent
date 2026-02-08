@@ -1,8 +1,8 @@
-import { motion } from "framer-motion";
+import { motion, HTMLMotionProps } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
 
-interface GlassCardProps {
+interface GlassCardProps extends Omit<HTMLMotionProps<"div">, "children"> {
   children: ReactNode;
   className?: string;
   hover?: boolean;
@@ -13,7 +13,8 @@ export const GlassCard = ({
   children, 
   className, 
   hover = true,
-  delay = 0 
+  delay = 0,
+  ...props
 }: GlassCardProps) => {
   return (
     <motion.div
@@ -25,6 +26,7 @@ export const GlassCard = ({
         "glass-card rounded-2xl p-6 card-hover",
         className
       )}
+      {...props}
     >
       {children}
     </motion.div>

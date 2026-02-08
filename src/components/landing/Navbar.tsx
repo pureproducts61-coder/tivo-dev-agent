@@ -2,9 +2,12 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useAuth();
 
   return (
     <motion.nav
@@ -35,12 +38,26 @@ export const Navbar = () => {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-3">
-            <Button variant="ghost" size="sm" className="rounded-xl">
-              লগইন
-            </Button>
-            <Button size="sm" className="bg-primary text-primary-foreground rounded-xl">
-              সাইন আপ
-            </Button>
+            {user ? (
+              <Link to="/dashboard">
+                <Button size="sm" className="bg-primary text-primary-foreground rounded-xl">
+                  ড্যাশবোর্ড
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link to="/auth">
+                  <Button variant="ghost" size="sm" className="rounded-xl">
+                    লগইন
+                  </Button>
+                </Link>
+                <Link to="/auth">
+                  <Button size="sm" className="bg-primary text-primary-foreground rounded-xl">
+                    সাইন আপ
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -70,12 +87,26 @@ export const Navbar = () => {
                 ডকস
               </a>
               <hr className="border-border/50" />
-              <Button variant="ghost" size="sm" className="justify-start rounded-xl">
-                লগইন
-              </Button>
-              <Button size="sm" className="bg-primary text-primary-foreground rounded-xl">
-                সাইন আপ
-              </Button>
+              {user ? (
+                <Link to="/dashboard">
+                  <Button size="sm" className="w-full bg-primary text-primary-foreground rounded-xl">
+                    ড্যাশবোর্ড
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/auth">
+                    <Button variant="ghost" size="sm" className="w-full justify-start rounded-xl">
+                      লগইন
+                    </Button>
+                  </Link>
+                  <Link to="/auth">
+                    <Button size="sm" className="w-full bg-primary text-primary-foreground rounded-xl">
+                      সাইন আপ
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </motion.div>
         )}
