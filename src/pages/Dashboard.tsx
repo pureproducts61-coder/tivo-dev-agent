@@ -13,7 +13,8 @@ import {
   LogOut,
   Search,
   LayoutGrid,
-  List
+  List,
+  Code2
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -310,6 +311,17 @@ const Dashboard = () => {
                     </div>
 
                     <div className={`flex gap-2 ${viewMode === 'list' ? '' : 'mt-4'}`}>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/project/${project.id}`);
+                        }}
+                      >
+                        <Code2 className="w-4 h-4 mr-1" />
+                        এডিট
+                      </Button>
                       {project.preview_url && (
                         <Button
                           size="sm"
