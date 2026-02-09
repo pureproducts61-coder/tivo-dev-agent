@@ -26,11 +26,12 @@ interface ProjectChatProps {
   };
   onClose: () => void;
   onProjectUpdated: (project: any) => void;
+  isEmbedded?: boolean;
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/project-chat`;
 
-export const ProjectChat = ({ project, onClose, onProjectUpdated }: ProjectChatProps) => {
+export const ProjectChat = ({ project, onClose, onProjectUpdated, isEmbedded = false }: ProjectChatProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -252,6 +253,116 @@ export const ProjectChat = ({ project, onClose, onProjectUpdated }: ProjectChatP
       handleSend();
     }
   };
+
+  // Embedded mode for ProjectEditor
+  if (isEmbedded) {
+    return (
+      <div className="h-full flex flex-col bg-background border-l border-border">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/20">
+              <Sparkles className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-foreground">AI Assistant</h2>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="text-muted-foreground"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {isLoadingMessages ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <Bot className="w-10 h-10 text-primary mb-3" />
+              <p className="text-sm text-muted-foreground">
+                কোড সম্পর্কে প্রশ্ন করুন
+              </p>
+            </div>
+          ) : (
+            <AnimatePresence>
+              {messages.map((message, index) => (
+                <motion.div
+                  key={message.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.02 }}
+                  className={`flex gap-2 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+                >
+                  <div className={`p-1.5 rounded-full h-fit ${
+                    message.role === 'user' 
+                      ? 'bg-primary/20' 
+                      : 'bg-secondary/20'
+                  }`}>
+                    {message.role === 'user' ? (
+                      <User className="w-4 h-4 text-primary" />
+                    ) : (
+                      <Bot className="w-4 h-4 text-secondary" />
+                    )}
+                  </div>
+                  <div className={`flex-1 ${message.role === 'user' ? 'text-right' : ''}`}>
+                    <div className={`inline-block p-3 rounded-xl text-sm ${
+                      message.role === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted'
+                    }`}>
+                      {message.role === 'assistant' ? (
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                          <ReactMarkdown>{message.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="p-3 border-t border-border">
+          <div className="flex gap-2">
+            <Textarea
+              ref={textareaRef}
+              placeholder="প্রশ্ন করুন..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="min-h-[50px] max-h-[100px] resize-none bg-background/50 text-sm"
+              disabled={isLoading}
+            />
+            <Button
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading}
+              size="sm"
+              className="h-auto bg-gradient-to-r from-primary to-secondary"
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
