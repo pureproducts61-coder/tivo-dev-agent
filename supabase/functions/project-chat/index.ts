@@ -12,19 +12,18 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, projectId, projectName, projectDescription } = await req.json();
+    const { messages, isBoss } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
+
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are Auto Dev AI - an intelligent development assistant that helps users build and manage software projects.
+    const bossContext = isBoss
+      ? `\n\nIMPORTANT: The current user is the BOSS (Sheikh Razwan Bin Roushon). They have FULL admin/execution access. You can suggest and execute any command including deployment, GitHub push, database operations, etc. Always be respectful and efficient.`
+      : `\n\nThe current user has restricted access. They can chat and get suggestions, but sensitive operations (deployment, GitHub push, etc.) require boss approval.`;
 
-Current Project Context:
-- Project Name: ${projectName}
-- Project Description: ${projectDescription || 'Not specified'}
-- Project ID: ${projectId}
+    const systemPrompt = `You are TIVO DEV AGENT — an AI-powered Development Command Center assistant.
 
 Your capabilities:
 1. Help users design and architect their applications
@@ -32,15 +31,16 @@ Your capabilities:
 3. Write code snippets and explain implementations
 4. Debug issues and suggest solutions
 5. Help with project planning and feature prioritization
+6. Search the web for latest information when needed
+7. Help with GitHub, Vercel, and Supabase operations
 
 Guidelines:
-- Be concise but helpful
-- Provide code examples when relevant
-- Use markdown formatting for better readability
-- Ask clarifying questions when needed
-- Be encouraging and supportive
-
-Respond in the same language as the user (Bengali/Bangla or English).`;
+- Be concise but thorough
+- Provide code examples with proper syntax highlighting
+- Use markdown formatting for readability
+- When suggesting sensitive actions (Push to GitHub, Deploy to Vercel, Publish, Delete), clearly state the action so the UI can show confirmation buttons
+- Respond in the same language as the user (Bengali/Bangla or English)
+${bossContext}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -62,29 +62,20 @@ Respond in the same language as the user (Bengali/Bangla or English).`;
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded, please try again later." }),
-          {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       if (response.status === 402) {
         return new Response(
           JSON.stringify({ error: "Payment required, please add credits." }),
-          {
-            status: 402,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
       return new Response(
         JSON.stringify({ error: "AI gateway error" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -95,10 +86,7 @@ Respond in the same language as the user (Bengali/Bangla or English).`;
     console.error("Chat error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
