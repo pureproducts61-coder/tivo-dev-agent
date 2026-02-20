@@ -23,9 +23,9 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
       },
       manifest: {
-        name: "TIVO AI Agent",
-        short_name: "TIVO",
-        description: "AI-Powered Frontend Command Center",
+        name: "TIVO DEV AGENT",
+        short_name: "TIVO DEV",
+        description: "AI-Powered Development Command Center",
         theme_color: "#0a0e1a",
         background_color: "#0a0e1a",
         display: "standalone",

@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { Bot, Settings, Zap, Hammer, MessageSquare, History, Globe, LogOut, User, Palette, Languages } from 'lucide-react';
+import { Settings, Zap, Hammer, Globe, History } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import { BrandLogo } from './BrandLogo';
+import { LogOut, User, Palette, Languages } from 'lucide-react';
 
 const navItems = [
   { label: 'অটোমেটেড', icon: Zap, id: 'automated' },
@@ -30,15 +31,11 @@ export const Header = ({ activeTab, onTabChange, onOpenSettings }: HeaderProps) 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border">
       <div className="flex items-center justify-between px-4 h-14">
-        {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-            <Bot className="w-5 h-5 text-primary" />
-          </div>
-          <span className="font-bold text-lg gradient-text">TIVO</span>
+          <BrandLogo size={28} />
+          <span className="font-bold text-lg gradient-text">TIVO DEV</span>
         </div>
 
-        {/* Nav tabs */}
         <nav className="hidden md:flex items-center gap-1">
           {navItems.map((item) => (
             <button
@@ -56,7 +53,6 @@ export const Header = ({ activeTab, onTabChange, onOpenSettings }: HeaderProps) 
           ))}
         </nav>
 
-        {/* Settings */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-lg">
@@ -65,7 +61,7 @@ export const Header = ({ activeTab, onTabChange, onOpenSettings }: HeaderProps) 
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48 glass-card border-border">
             <DropdownMenuItem onClick={onOpenSettings} className="gap-2">
-              <Zap className="w-4 h-4" /> ব্যাকেন্ড কনফিগ
+              <Zap className="w-4 h-4" /> টোকেন ও API কনফিগ
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2">
               <Palette className="w-4 h-4" /> থিম
@@ -84,7 +80,6 @@ export const Header = ({ activeTab, onTabChange, onOpenSettings }: HeaderProps) 
         </DropdownMenu>
       </div>
 
-      {/* Mobile nav */}
       <div className="flex md:hidden items-center gap-1 px-2 pb-2 overflow-x-auto scrollbar-hide">
         {navItems.map((item) => (
           <button
