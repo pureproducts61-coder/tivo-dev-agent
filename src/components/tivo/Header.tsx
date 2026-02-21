@@ -1,17 +1,10 @@
-import { Settings, Zap, Hammer, Globe, History } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { BrandLogo } from './BrandLogo';
-import { LogOut, User, Palette, Languages } from 'lucide-react';
-
-const navItems = [
-  { label: 'অটোমেটেড', icon: Zap, id: 'automated' },
-  { label: 'বিল্ট', icon: Hammer, id: 'built' },
-  { label: 'পাবলিশড', icon: Globe, id: 'published' },
-  { label: 'চ্যাট হিস্ট্রি', icon: History, id: 'history' },
-];
+import { LogOut, User, Palette, Languages, Zap } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: string;
@@ -31,27 +24,10 @@ export const Header = ({ activeTab, onTabChange, onOpenSettings }: HeaderProps) 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border">
       <div className="flex items-center justify-between px-4 h-14">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pl-10 md:pl-0">
           <BrandLogo size={28} />
           <span className="font-bold text-lg gradient-text">TIVO DEV</span>
         </div>
-
-        <nav className="hidden md:flex items-center gap-1">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onTabChange(item.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === item.id
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              }`}
-            >
-              <item.icon className="w-4 h-4" />
-              {item.label}
-            </button>
-          ))}
-        </nav>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -78,23 +54,6 @@ export const Header = ({ activeTab, onTabChange, onOpenSettings }: HeaderProps) 
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
-
-      <div className="flex md:hidden items-center gap-1 px-2 pb-2 overflow-x-auto scrollbar-hide">
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => onTabChange(item.id)}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
-              activeTab === item.id
-                ? 'bg-primary/15 text-primary'
-                : 'text-muted-foreground'
-            }`}
-          >
-            <item.icon className="w-3.5 h-3.5" />
-            {item.label}
-          </button>
-        ))}
       </div>
     </header>
   );
