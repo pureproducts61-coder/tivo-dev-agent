@@ -218,7 +218,7 @@ const Dashboard = () => {
 
         <main className="flex-1 flex flex-col pb-28 min-w-0">
           {mode === 'plan' && <PlanView messages={messages} onFeedback={handleFeedback} />}
-          {mode === 'build' && <BuildView projects={buildProjects} />}
+          {mode === 'build' && <BuildView />}
           {mode === 'automation' && <AutomationView />}
         </main>
       </div>
