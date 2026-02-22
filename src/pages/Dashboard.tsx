@@ -25,7 +25,6 @@ const Dashboard = () => {
 
   const [activeTab, setActiveTab] = useState('automated');
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [buildProjects, setBuildProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isBoss, setIsBoss] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -44,18 +43,6 @@ const Dashboard = () => {
   useEffect(() => {
     if (!loading && !user) navigate('/auth');
   }, [user, loading, navigate]);
-
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from('projects')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
-      .then(({ data }) => {
-        if (data) setBuildProjects(data);
-      });
-  }, [user]);
 
   const checkForSensitiveAction = (text: string) => {
     const lower = text.toLowerCase();
