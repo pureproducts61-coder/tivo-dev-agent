@@ -1,17 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, Save, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Save, Trash2, CheckCircle2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useTokens, TokenSet } from '@/hooks/useTokens';
 
 interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
 }
 
-const TOKEN_KEYS = [
+const TOKEN_FIELDS: { key: keyof TokenSet; label: string; placeholder: string }[] = [
   { key: 'GITHUB_TOKEN', label: 'GitHub Token', placeholder: 'ghp_xxxxxxxxxxxx' },
   { key: 'VERCEL_TOKEN', label: 'Vercel Token', placeholder: 'vercel_xxxxxxxxxxxx' },
   { key: 'TAVILY_API_KEY', label: 'Tavily API Key', placeholder: 'tvly-xxxxxxxxxxxx' },
@@ -19,35 +20,33 @@ const TOKEN_KEYS = [
 ];
 
 export const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
-  const [tokens, setTokens] = useState<Record<string, string>>({});
+  const { tokens, setToken, clearAllTokens, hasToken } = useTokens();
   const [showToken, setShowToken] = useState<Record<string, boolean>>({});
+  const [localTokens, setLocalTokens] = useState<Record<string, string>>({});
+  const [initialized, setInitialized] = useState(false);
 
-  useEffect(() => {
-    if (open) {
-      const loaded: Record<string, string> = {};
-      TOKEN_KEYS.forEach(({ key }) => {
-        loaded[key] = localStorage.getItem(`tivo_${key}`) || '';
-      });
-      setTokens(loaded);
-    }
-  }, [open]);
+  // Sync local state when dialog opens
+  if (open && !initialized) {
+    const local: Record<string, string> = {};
+    TOKEN_FIELDS.forEach(({ key }) => { local[key] = tokens[key]; });
+    setLocalTokens(local);
+    setInitialized(true);
+  }
+  if (!open && initialized) {
+    setInitialized(false);
+  }
 
   const handleSave = () => {
-    TOKEN_KEYS.forEach(({ key }) => {
-      const val = tokens[key]?.trim();
-      if (val) {
-        localStorage.setItem(`tivo_${key}`, val);
-      } else {
-        localStorage.removeItem(`tivo_${key}`);
-      }
+    TOKEN_FIELDS.forEach(({ key }) => {
+      setToken(key, localTokens[key] || '');
     });
-    toast({ title: 'সেভ হয়েছে', description: 'সকল টোকেন সফলভাবে সংরক্ষিত হয়েছে।' });
+    toast({ title: '✅ সেভ হয়েছে', description: 'আপনার টোকেনগুলো নিরাপদে সংরক্ষিত হয়েছে।' });
     onClose();
   };
 
   const handleClearAll = () => {
-    TOKEN_KEYS.forEach(({ key }) => localStorage.removeItem(`tivo_${key}`));
-    setTokens({});
+    clearAllTokens();
+    setLocalTokens({});
     toast({ title: 'মুছে ফেলা হয়েছে', description: 'সকল টোকেন রিমুভ করা হয়েছে।' });
   };
 
@@ -57,18 +56,24 @@ export const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
         <DialogHeader>
           <DialogTitle className="text-foreground">🔑 টোকেন ও API কনফিগারেশন</DialogTitle>
         </DialogHeader>
+        <p className="text-xs text-muted-foreground -mt-2">
+          আপনার টোকেনগুলো শুধুমাত্র আপনার ব্রাউজারে সংরক্ষিত — অন্য কেউ এক্সেস করতে পারবে না।
+        </p>
 
         <div className="space-y-4 pt-2">
-          {TOKEN_KEYS.map(({ key, label, placeholder }) => (
+          {TOKEN_FIELDS.map(({ key, label, placeholder }) => (
             <div key={key} className="space-y-1.5">
-              <Label htmlFor={key} className="text-xs font-medium text-muted-foreground">{label}</Label>
+              <Label htmlFor={key} className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                {label}
+                {hasToken(key) && <CheckCircle2 className="w-3 h-3 text-primary" />}
+              </Label>
               <div className="relative">
                 <Input
                   id={key}
                   type={showToken[key] ? 'text' : 'password'}
                   placeholder={placeholder}
-                  value={tokens[key] || ''}
-                  onChange={(e) => setTokens(prev => ({ ...prev, [key]: e.target.value }))}
+                  value={localTokens[key] || ''}
+                  onChange={(e) => setLocalTokens(prev => ({ ...prev, [key]: e.target.value }))}
                   className="bg-muted/50 border-border pr-10 font-mono text-xs"
                 />
                 <button

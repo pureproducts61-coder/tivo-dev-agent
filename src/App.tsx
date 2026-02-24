@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { BackendConfigProvider } from "@/hooks/useBackendConfig";
 import { AppModeProvider } from "@/hooks/useAppMode";
+import { TokenProvider } from "@/hooks/useTokens";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -17,8 +18,9 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <BackendConfigProvider>
-          <AppModeProvider>
+        <TokenProvider>
+          <BackendConfigProvider>
+            <AppModeProvider>
             <Toaster />
             <Sonner />
             <BrowserRouter>
@@ -29,8 +31,9 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
-          </AppModeProvider>
-        </BackendConfigProvider>
+            </AppModeProvider>
+          </BackendConfigProvider>
+        </TokenProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

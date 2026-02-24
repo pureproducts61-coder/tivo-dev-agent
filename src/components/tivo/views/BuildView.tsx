@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/hooks/use-toast';
+import { useTokens } from '@/hooks/useTokens';
+import { useGitHubAPI } from '@/hooks/useGitHubAPI';
 
 interface GitHubFile {
   name: string;
@@ -87,7 +89,9 @@ const TypewriterLineComponent = ({ line, onDone }: { line: TypewriterLine; onDon
 };
 
 export const BuildView = () => {
-  const [token, setToken] = useState(() => localStorage.getItem('tivo_GITHUB_TOKEN') || '');
+  const { tokens, setToken } = useTokens();
+  const gitHub = useGitHubAPI();
+  const [token, setLocalToken] = useState(() => tokens.GITHUB_TOKEN || '');
   const [showToken, setShowToken] = useState(false);
   const [repoUrl, setRepoUrl] = useState('');
   const [isExecuting, setIsExecuting] = useState(false);
@@ -118,9 +122,12 @@ export const BuildView = () => {
     }
   }, [currentLineIndex]);
 
+  // Sync token from context
+  useEffect(() => { setLocalToken(tokens.GITHUB_TOKEN || ''); }, [tokens.GITHUB_TOKEN]);
+
   const saveToken = () => {
     if (token.trim()) {
-      localStorage.setItem('tivo_GITHUB_TOKEN', token.trim());
+      setToken('GITHUB_TOKEN', token.trim());
       toast({ title: '✅ টোকেন সেভ হয়েছে' });
     }
   };
@@ -137,7 +144,7 @@ export const BuildView = () => {
     return fetch(`https://api.github.com${endpoint}`, {
       ...options,
       headers: {
-        Authorization: `Bearer ${token.trim()}`,
+        Authorization: `Bearer ${token.trim() || tokens.GITHUB_TOKEN}`,
         Accept: 'application/vnd.github.v3+json',
         'Content-Type': 'application/json',
         ...options?.headers,
@@ -337,7 +344,7 @@ export const BuildView = () => {
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Personal Access Token</Label>
                 <div className="relative">
-                  <Input type={showToken ? 'text' : 'password'} placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" value={token} onChange={(e) => setToken(e.target.value)} onBlur={saveToken} className="bg-muted/50 border-border pr-10 font-mono text-xs" />
+                  <Input type={showToken ? 'text' : 'password'} placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" value={token} onChange={(e) => setLocalToken(e.target.value)} onBlur={saveToken} className="bg-muted/50 border-border pr-10 font-mono text-xs" />
                   <button type="button" onClick={() => setShowToken(!showToken)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                     {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>

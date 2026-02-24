@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
+import { useTokens } from '@/hooks/useTokens';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/tivo/Header';
 import { AppSidebar } from '@/components/tivo/AppSidebar';
@@ -12,21 +13,19 @@ import { PlanView } from '@/components/tivo/views/PlanView';
 import { BuildView } from '@/components/tivo/views/BuildView';
 import { AutomationView } from '@/components/tivo/views/AutomationView';
 import { useChatSessions } from '@/hooks/useChatSessions';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-const BOSS_NAME = 'Sheikh Razwan Bin Roushon';
 const SENSITIVE_ACTIONS = ['push to github', 'deploy to vercel', 'publish', 'delete', 'drop table'];
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
   const { mode } = useAppMode();
+  const { tokens } = useTokens();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('automated');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isBoss, setIsBoss] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const {
@@ -65,17 +64,6 @@ const Dashboard = () => {
   const handleSend = useCallback(async (message: string) => {
     if (!message.trim()) return;
 
-    // Boss check
-    if (message.trim() === `I'm ${BOSS_NAME}`) {
-      setIsBoss(true);
-      const bossMsg = {
-        role: 'assistant' as const,
-        content: `✅ স্বাগতম, **${BOSS_NAME}**! সম্পূর্ণ অ্যাক্সেস সক্রিয়।`
-      };
-      setMessages(prev => [...prev, { role: 'user', content: message }, bossMsg]);
-      return;
-    }
-
     // Auto-create session if none active
     let sessionId = activeSessionId;
     if (!sessionId) {
@@ -91,6 +79,13 @@ const Dashboard = () => {
     try {
       if (mode === 'plan') {
         const allMessages = [...messages, userMsg];
+
+        // Build system prompt with user's tokens context
+        const systemContext = [
+          tokens.GITHUB_TOKEN ? `User has GitHub token configured.` : '',
+          tokens.VERCEL_TOKEN ? `User has Vercel token configured.` : '',
+        ].filter(Boolean).join(' ');
+
         let assistantSoFar = '';
 
         const resp = await fetch(
@@ -103,7 +98,7 @@ const Dashboard = () => {
             },
             body: JSON.stringify({
               messages: allMessages.map(m => ({ role: m.role, content: m.content })),
-              isBoss,
+              systemContext,
             }),
           }
         );
@@ -155,7 +150,6 @@ const Dashboard = () => {
           }
         }
 
-        // Save assistant message
         if (assistantSoFar) {
           await addMessage('assistant', assistantSoFar);
         }
@@ -168,7 +162,7 @@ const Dashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [messages, mode, isBoss, activeSessionId, createSession, addMessage, setMessages]);
+  }, [messages, mode, tokens, activeSessionId, createSession, addMessage, setMessages]);
 
   const handleConfirmAction = () => {
     toast({ title: '✅ কার্যকর হচ্ছে', description: `"${pendingAction}" চলছে...` });
