@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useTokens } from '@/hooks/useTokens';
 import { toast } from '@/hooks/use-toast';
 
 interface AutomationTask {
@@ -55,6 +56,7 @@ const TASK_TEMPLATES: Record<TaskType, { title: string; steps: { name: string; s
 
 export const AutomationView = () => {
   const { user } = useAuth();
+  const { getToken, hasToken } = useTokens();
   const [tasks, setTasks] = useState<AutomationTask[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -115,7 +117,7 @@ export const AutomationView = () => {
   };
 
   const runGitHubActions = async (task: AutomationTask) => {
-    const token = localStorage.getItem('tivo_GITHUB_TOKEN');
+    const token = getToken('GITHUB_TOKEN');
     if (!token) {
       toast({ variant: 'destructive', title: 'টোকেন নেই', description: 'Settings থেকে GitHub Token সেট করুন।' });
       return;
@@ -201,7 +203,7 @@ export const AutomationView = () => {
   };
 
   const runVercelDeploy = async (task: AutomationTask) => {
-    const token = localStorage.getItem('tivo_VERCEL_TOKEN');
+    const token = getToken('VERCEL_TOKEN');
     if (!token) {
       toast({ variant: 'destructive', title: 'টোকেন নেই', description: 'Settings থেকে Vercel Token সেট করুন।' });
       return;
