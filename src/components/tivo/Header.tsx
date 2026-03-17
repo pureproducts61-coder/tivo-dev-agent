@@ -1,5 +1,7 @@
-import { Settings } from 'lucide-react';
+import { useState } from 'react';
+import { Settings, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdmin } from '@/hooks/useAdmin';
 import { useNavigate } from 'react-router-dom';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -10,10 +12,12 @@ interface HeaderProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onOpenSettings: () => void;
+  onOpenAdmin?: () => void;
 }
 
-export const Header = ({ activeTab, onTabChange, onOpenSettings }: HeaderProps) => {
+export const Header = ({ activeTab, onTabChange, onOpenSettings, onOpenAdmin }: HeaderProps) => {
   const { user, signOut } = useAuth();
+  const { isAdmin } = useAdmin();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -36,6 +40,14 @@ export const Header = ({ activeTab, onTabChange, onOpenSettings }: HeaderProps) 
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48 glass-card border-border">
+            {isAdmin && onOpenAdmin && (
+              <>
+                <DropdownMenuItem onClick={onOpenAdmin} className="gap-2 text-primary">
+                  <Shield className="w-4 h-4" /> অ্যাডমিন ড্যাশবোর্ড
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem onClick={onOpenSettings} className="gap-2">
               <Zap className="w-4 h-4" /> টোকেন ও API কনফিগ
             </DropdownMenuItem>
