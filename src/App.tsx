@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { BackendConfigProvider } from "@/hooks/useBackendConfig";
 import { AppModeProvider } from "@/hooks/useAppMode";
 import { TokenProvider } from "@/hooks/useTokens";
+import { AdminProvider } from "@/hooks/useAdmin";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -19,20 +20,22 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <TokenProvider>
-          <BackendConfigProvider>
-            <AppModeProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-            </AppModeProvider>
-          </BackendConfigProvider>
+          <AdminProvider>
+            <BackendConfigProvider>
+              <AppModeProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+              </AppModeProvider>
+            </BackendConfigProvider>
+          </AdminProvider>
         </TokenProvider>
       </AuthProvider>
     </TooltipProvider>

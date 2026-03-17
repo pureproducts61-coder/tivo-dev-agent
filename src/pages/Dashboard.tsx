@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { useTokens } from '@/hooks/useTokens';
+import { useAdmin } from '@/hooks/useAdmin';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/tivo/Header';
 import { AppSidebar } from '@/components/tivo/AppSidebar';
@@ -9,6 +10,8 @@ import { FloatingInputBar } from '@/components/tivo/FloatingInputBar';
 import { SettingsModal } from '@/components/tivo/SettingsModal';
 import { ModeSwitchDialog } from '@/components/tivo/ModeSwitchDialog';
 import { ActionConfirmation } from '@/components/tivo/ActionConfirmation';
+import { AdminDashboard } from '@/components/tivo/AdminDashboard';
+import { CentralCard } from '@/components/tivo/CentralCard';
 import { PlanView } from '@/components/tivo/views/PlanView';
 import { BuildView } from '@/components/tivo/views/BuildView';
 import { AutomationView } from '@/components/tivo/views/AutomationView';
@@ -21,22 +24,18 @@ const Dashboard = () => {
   const { user, loading } = useAuth();
   const { mode } = useAppMode();
   const { tokens } = useTokens();
+  const { isAdmin } = useAdmin();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('automated');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const {
-    sessions,
-    activeSessionId,
-    setActiveSessionId,
-    messages,
-    setMessages,
-    createSession,
-    addMessage,
-    deleteSession,
+    sessions, activeSessionId, setActiveSessionId,
+    messages, setMessages, createSession, addMessage, deleteSession,
   } = useChatSessions();
 
   useEffect(() => {
@@ -53,18 +52,13 @@ const Dashboard = () => {
 
   const handleFeedback = useCallback(async (msgIndex: number, type: 'like' | 'dislike') => {
     if (type === 'dislike') {
-      const apologyMsg = {
-        role: 'assistant' as const,
-        content: '😔 দুঃখিত! আমার উত্তরটি সন্তোষজনক হয়নি। অনুগ্রহ করে বলুন কোথায় ভুল হয়েছে।'
-      };
-      setMessages(prev => [...prev, apologyMsg]);
+      setMessages(prev => [...prev, { role: 'assistant', content: '😔 দুঃখিত! আমার উত্তরটি সন্তোষজনক হয়নি। অনুগ্রহ করে বলুন কোথায় ভুল হয়েছে।' }]);
     }
   }, [setMessages]);
 
   const handleSend = useCallback(async (message: string) => {
     if (!message.trim()) return;
 
-    // Auto-create session if none active
     let sessionId = activeSessionId;
     if (!sessionId) {
       sessionId = await createSession(message.slice(0, 50));
@@ -79,15 +73,13 @@ const Dashboard = () => {
     try {
       if (mode === 'plan') {
         const allMessages = [...messages, userMsg];
-
-        // Build system prompt with user's tokens context
         const systemContext = [
-          tokens.GITHUB_TOKEN ? `User has GitHub token configured.` : '',
-          tokens.VERCEL_TOKEN ? `User has Vercel token configured.` : '',
+          tokens.GITHUB_TOKEN ? 'User has GitHub token configured.' : '',
+          tokens.VERCEL_TOKEN ? 'User has Vercel token configured.' : '',
+          isAdmin ? 'User is admin.' : '',
         ].filter(Boolean).join(' ');
 
         let assistantSoFar = '';
-
         const resp = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/project-chat`,
           {
@@ -150,10 +142,7 @@ const Dashboard = () => {
           }
         }
 
-        if (assistantSoFar) {
-          await addMessage('assistant', assistantSoFar);
-        }
-
+        if (assistantSoFar) await addMessage('assistant', assistantSoFar);
         const sensitiveAction = checkForSensitiveAction(assistantSoFar);
         if (sensitiveAction) setPendingAction(sensitiveAction);
       }
@@ -162,7 +151,7 @@ const Dashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [messages, mode, tokens, activeSessionId, createSession, addMessage, setMessages]);
+  }, [messages, mode, tokens, activeSessionId, createSession, addMessage, setMessages, isAdmin]);
 
   const handleConfirmAction = () => {
     toast({ title: '✅ কার্যকর হচ্ছে', description: `"${pendingAction}" চলছে...` });
@@ -182,9 +171,17 @@ const Dashboard = () => {
     );
   }
 
+  // Determine what to show in the main area
+  const showCentralCard = mode === 'plan' && messages.length === 0;
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header activeTab={activeTab} onTabChange={setActiveTab} onOpenSettings={() => setSettingsOpen(true)} />
+      <Header
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenAdmin={() => setAdminOpen(true)}
+      />
 
       <div className="flex-1 flex pt-14">
         <AppSidebar
@@ -197,8 +194,9 @@ const Dashboard = () => {
           onDeleteSession={deleteSession}
         />
 
-        <main className="flex-1 flex flex-col pb-28 min-w-0">
-          {mode === 'plan' && <PlanView messages={messages} onFeedback={handleFeedback} />}
+        <main className="flex-1 flex flex-col pb-32 min-w-0">
+          {showCentralCard && <CentralCard />}
+          {mode === 'plan' && messages.length > 0 && <PlanView messages={messages} onFeedback={handleFeedback} />}
           {mode === 'build' && <BuildView />}
           {mode === 'automation' && <AutomationView />}
         </main>
@@ -206,12 +204,9 @@ const Dashboard = () => {
 
       <FloatingInputBar onSend={handleSend} isLoading={isLoading} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <AdminDashboard open={adminOpen} onClose={() => setAdminOpen(false)} />
       <ModeSwitchDialog />
-      <ActionConfirmation
-        action={pendingAction}
-        onConfirm={handleConfirmAction}
-        onModify={handleModifyAction}
-      />
+      <ActionConfirmation action={pendingAction} onConfirm={handleConfirmAction} onModify={handleModifyAction} />
     </div>
   );
 };
