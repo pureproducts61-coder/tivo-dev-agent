@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
@@ -25,7 +25,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error } = await supabase.auth.getUser(token);
-    
+
     if (error || !user) {
       return new Response(JSON.stringify({ isAdmin: false }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -46,10 +46,14 @@ serve(async (req) => {
       });
     }
 
-    // Fallback: check env-based admin email
-    if (adminEmail && user.email === adminEmail) {
-      // Auto-grant admin role in DB
-      await supabase.from("user_roles").upsert({ user_id: user.id, role: "admin" });
+    // Fallback: check env-based admin email match
+    if (adminEmail && adminPassword && user.email === adminEmail) {
+      // The password was already verified during Supabase sign-in.
+      // If env ADMIN_EMAIL matches the logged-in user's email, grant admin.
+      await supabase.from("user_roles").upsert(
+        { user_id: user.id, role: "admin" },
+        { onConflict: "user_id,role" }
+      );
       return new Response(JSON.stringify({ isAdmin: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

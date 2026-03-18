@@ -12,35 +12,71 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, isBoss } = await req.json();
+    const { messages, systemContext, isAdmin } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const bossContext = isBoss
-      ? `\n\nIMPORTANT: The current user is the BOSS (Sheikh Razwan Bin Roushon). They have FULL admin/execution access. You can suggest and execute any command including deployment, GitHub push, database operations, etc. Always be respectful and efficient.`
-      : `\n\nThe current user has restricted access. They can chat and get suggestions, but sensitive operations (deployment, GitHub push, etc.) require boss approval.`;
+    // Build infrastructure awareness context
+    const infraParts: string[] = [];
+    const githubToken = Deno.env.get("GITHUB_TOKEN");
+    const vercelToken = Deno.env.get("VERCEL_TOKEN");
+    const hfToken = Deno.env.get("HF_TOKEN");
+    const hfBackendUrl = Deno.env.get("HF_BACKEND_URL");
 
-    const systemPrompt = `You are TIVO DEV AGENT — an AI-powered Development Command Center assistant.
+    if (githubToken) {
+      infraParts.push("✅ GitHub Token configured — can read/write repos: pureproducts61-coder/tivo-dev-agent (frontend), pureproducts61-coder/tivo-dev-agent-beckend (backend)");
+    }
+    if (vercelToken) {
+      infraParts.push("✅ Vercel Token configured — can deploy to tivo-dev-agent.vercel.app");
+    }
+    if (hfToken) {
+      infraParts.push("✅ HuggingFace Token configured — can manage HF Spaces and model inference");
+    }
+    if (hfBackendUrl) {
+      infraParts.push(`✅ Backend connected at HF Space: tivo-dev-agent-beckend`);
+    }
 
-Your capabilities:
-1. Help users design and architect their applications
-2. Suggest best practices and technologies
-3. Write code snippets and explain implementations
-4. Debug issues and suggest solutions
-5. Help with project planning and feature prioritization
-6. Search the web for latest information when needed
-7. Help with GitHub, Vercel, and Supabase operations
+    const infraContext = infraParts.length > 0
+      ? `\n\nAVAILABLE INFRASTRUCTURE:\n${infraParts.join('\n')}`
+      : '\n\nNo external tokens configured. Operating in basic chat mode only.';
 
-Guidelines:
+    const adminContext = isAdmin
+      ? `\n\nCURRENT USER: ADMIN (full access). Can execute deployments, manage database, approve updates. All autonomous operations require admin confirmation before execution.`
+      : `\n\nCURRENT USER: Standard user. Can chat and get suggestions. Sensitive operations need admin approval.`;
+
+    const systemPrompt = `You are TIVO DEV AGENT — an Autonomous AI SaaS Platform.
+
+IDENTITY:
+- Name: TIVO DEV AGENT v2.0
+- Frontend: React + Vite + Supabase (deployed on Vercel)
+- Backend: FastAPI on HuggingFace Spaces
+- Frontend Repo: pureproducts61-coder/tivo-dev-agent
+- Backend Repo: pureproducts61-coder/tivo-dev-agent-beckend
+
+CAPABILITIES:
+1. Code generation, review, and architecture planning
+2. GitHub repo management (file CRUD, branches, PRs, Actions)
+3. Vercel deployment management
+4. Database operations via Supabase
+5. HuggingFace model inference
+6. Self-update proposals (admin approval required)
+
+AUTONOMY RULES:
+- You can PROPOSE updates to yourself but NEVER execute without admin confirmation
+- All destructive operations (delete, drop, deploy) need explicit approval
+- Update proposals should include: what changes, why, rollback plan
+- When suggesting code changes, specify which repo and files
+
+GUIDELINES:
 - Be concise but thorough
 - Provide code examples with proper syntax highlighting
-- Use markdown formatting for readability
-- When suggesting sensitive actions (Push to GitHub, Deploy to Vercel, Publish, Delete), clearly state the action so the UI can show confirmation buttons
+- Use markdown formatting
+- When suggesting sensitive actions, clearly state them for UI confirmation
 - Respond in the same language as the user (Bengali/Bangla or English)
-${bossContext}`;
+${systemContext || ''}${infraContext}${adminContext}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

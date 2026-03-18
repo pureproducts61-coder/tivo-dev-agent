@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Settings2, Users, CreditCard, Cpu, CheckCircle2, XCircle, Clock,
-  RefreshCw, Loader2, ChevronDown, ChevronUp
+  RefreshCw, Loader2, Activity, Server, GitBranch, Globe, Zap
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -17,12 +17,24 @@ interface AdminDashboardProps {
   onClose: () => void;
 }
 
+interface SystemStatus {
+  tokens: Record<string, boolean>;
+  infrastructure: {
+    frontend: { repo: string; deployment: string; platform: string };
+    backend: { repo: string; space: string; platform: string; status: string };
+  };
+  stats: { totalUsers: number; pendingPayments: number };
+  availableCapabilities: string[];
+}
+
 export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [payments, setPayments] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(false);
 
   // API Management state
   const [apiKeys, setApiKeys] = useState({
@@ -33,7 +45,7 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
     if (open) {
       fetchPayments();
       fetchUsers();
-      // Load API keys from localStorage (admin-only)
+      fetchSystemStatus();
       const stored = localStorage.getItem('tivo_admin_api_keys');
       if (stored) setApiKeys(JSON.parse(stored));
     }
@@ -41,21 +53,36 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
 
   const fetchPayments = async () => {
     setLoadingPayments(true);
-    const { data } = await supabase.from('payment_requests' as any).select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('payment_requests').select('*').order('created_at', { ascending: false });
     setPayments(data || []);
     setLoadingPayments(false);
   };
 
   const fetchUsers = async () => {
     setLoadingUsers(true);
-    const { data } = await supabase.from('user_credits' as any).select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('user_credits').select('*').order('created_at', { ascending: false });
     setUsers(data || []);
     setLoadingUsers(false);
   };
 
+  const fetchSystemStatus = async () => {
+    if (!session?.access_token) return;
+    setLoadingStatus(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('system-status', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (data && !error) setSystemStatus(data);
+    } catch (e) {
+      console.error('Failed to fetch system status:', e);
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
+
   const handlePaymentAction = async (paymentId: string, action: 'approved' | 'rejected') => {
-    const { error } = await supabase.from('payment_requests' as any)
-      .update({ status: action, reviewed_by: user?.id, updated_at: new Date().toISOString() })
+    const { error } = await supabase.from('payment_requests')
+      .update({ status: action, reviewed_by: user?.id, updated_at: new Date().toISOString() } as any)
       .eq('id', paymentId);
 
     if (!error) {
@@ -65,8 +92,8 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
           const plan = payment.plan;
           const dailyCredits = plan === 'pro' ? 9999 : 50;
           const monthlyCredits = plan === 'pro' ? 99999 : 1000;
-          await supabase.from('user_credits' as any)
-            .update({ plan, daily_credits: dailyCredits, monthly_credits: monthlyCredits, payment_status: 'paid' })
+          await supabase.from('user_credits')
+            .update({ plan, daily_credits: dailyCredits, monthly_credits: monthlyCredits, payment_status: 'paid' } as any)
             .eq('user_id', payment.user_id);
         }
       }
@@ -77,8 +104,8 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
   };
 
   const updateUserCredits = async (userId: string, field: string, value: number) => {
-    const { error } = await supabase.from('user_credits' as any)
-      .update({ [field]: value, updated_at: new Date().toISOString() })
+    const { error } = await supabase.from('user_credits')
+      .update({ [field]: value, updated_at: new Date().toISOString() } as any)
       .eq('user_id', userId);
     if (!error) {
       toast({ title: '✅ আপডেট হয়েছে' });
@@ -97,6 +124,34 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
     return <Clock className="w-4 h-4 text-accent" />;
   };
 
+  const tokenStatusBadge = (configured: boolean) => (
+    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+      configured ? 'bg-primary/20 text-primary' : 'bg-destructive/20 text-destructive'
+    }`}>
+      {configured ? '✅ Active' : '❌ Missing'}
+    </span>
+  );
+
+  const backendStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      connected: 'bg-primary/20 text-primary',
+      error: 'bg-destructive/20 text-destructive',
+      unreachable: 'bg-accent/20 text-accent',
+      not_configured: 'bg-muted text-muted-foreground',
+    };
+    const labels: Record<string, string> = {
+      connected: '🟢 Connected',
+      error: '🔴 Error',
+      unreachable: '🟡 Unreachable',
+      not_configured: '⚪ Not Configured',
+    };
+    return (
+      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${styles[status] || styles.not_configured}`}>
+        {labels[status] || status}
+      </span>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="glass-card border-border sm:max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -106,18 +161,115 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="payments" className="w-full">
-          <TabsList className="w-full grid grid-cols-3 bg-muted/30">
-            <TabsTrigger value="payments" className="gap-1.5 text-xs">
+        <Tabs defaultValue="system" className="w-full">
+          <TabsList className="w-full grid grid-cols-4 bg-muted/30">
+            <TabsTrigger value="system" className="gap-1 text-[10px] sm:text-xs">
+              <Activity className="w-3.5 h-3.5" /> সিস্টেম
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="gap-1 text-[10px] sm:text-xs">
               <CreditCard className="w-3.5 h-3.5" /> পেমেন্ট
             </TabsTrigger>
-            <TabsTrigger value="users" className="gap-1.5 text-xs">
-              <Users className="w-3.5 h-3.5" /> ইউজার ও ক্রেডিট
+            <TabsTrigger value="users" className="gap-1 text-[10px] sm:text-xs">
+              <Users className="w-3.5 h-3.5" /> ইউজার
             </TabsTrigger>
-            <TabsTrigger value="api" className="gap-1.5 text-xs">
-              <Cpu className="w-3.5 h-3.5" /> API ম্যানেজমেন্ট
+            <TabsTrigger value="api" className="gap-1 text-[10px] sm:text-xs">
+              <Cpu className="w-3.5 h-3.5" /> API
             </TabsTrigger>
           </TabsList>
+
+          {/* System Autonomy Tab */}
+          <TabsContent value="system" className="space-y-4 mt-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">সিস্টেম স্ট্যাটাস ও অটোনমি</h3>
+              <Button size="sm" variant="ghost" onClick={fetchSystemStatus} className="gap-1 text-xs">
+                <RefreshCw className="w-3.5 h-3.5" /> রিফ্রেশ
+              </Button>
+            </div>
+
+            {loadingStatus ? (
+              <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+            ) : systemStatus ? (
+              <div className="space-y-4">
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="glass-card rounded-xl p-3 text-center space-y-1">
+                    <Users className="w-4 h-4 text-primary mx-auto" />
+                    <p className="text-lg font-bold text-foreground">{systemStatus.stats.totalUsers}</p>
+                    <p className="text-[10px] text-muted-foreground">মোট ইউজার</p>
+                  </div>
+                  <div className="glass-card rounded-xl p-3 text-center space-y-1">
+                    <CreditCard className="w-4 h-4 text-accent mx-auto" />
+                    <p className="text-lg font-bold text-foreground">{systemStatus.stats.pendingPayments}</p>
+                    <p className="text-[10px] text-muted-foreground">পেন্ডিং পেমেন্ট</p>
+                  </div>
+                </div>
+
+                {/* Token Status */}
+                <div className="glass-card rounded-xl p-4 space-y-2">
+                  <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-primary" /> টোকেন স্ট্যাটাস
+                  </h4>
+                  <div className="space-y-1.5">
+                    {Object.entries(systemStatus.tokens).map(([name, configured]) => (
+                      <div key={name} className="flex items-center justify-between">
+                        <span className="text-xs font-mono text-muted-foreground">{name}</span>
+                        {tokenStatusBadge(configured)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Infrastructure */}
+                <div className="glass-card rounded-xl p-4 space-y-3">
+                  <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Server className="w-3.5 h-3.5 text-primary" /> ইনফ্রাস্ট্রাকচার
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Globe className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Frontend</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-foreground">{systemStatus.infrastructure.frontend.deployment}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <GitBranch className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Frontend Repo</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-foreground">{systemStatus.infrastructure.frontend.repo.split('/')[1]}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Server className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Backend</span>
+                      </div>
+                      {backendStatusBadge(systemStatus.infrastructure.backend.status)}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <GitBranch className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Backend Repo</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-foreground">{systemStatus.infrastructure.backend.repo.split('/')[1]}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Update Proposals placeholder */}
+                <div className="glass-card rounded-xl p-4 space-y-2 border-primary/10">
+                  <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-primary" /> আপডেট প্রোপোজাল
+                  </h4>
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    কোনো পেন্ডিং আপডেট প্রোপোজাল নেই। AI চ্যাটে আপডেট সাজেস্ট করবে।
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8">স্ট্যাটাস লোড করা যায়নি। রিফ্রেশ করুন।</p>
+            )}
+          </TabsContent>
 
           {/* Payments Tab */}
           <TabsContent value="payments" className="space-y-3 mt-4">

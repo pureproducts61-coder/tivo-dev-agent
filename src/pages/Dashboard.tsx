@@ -18,7 +18,7 @@ import { AutomationView } from '@/components/tivo/views/AutomationView';
 import { useChatSessions } from '@/hooks/useChatSessions';
 import { toast } from '@/hooks/use-toast';
 
-const SENSITIVE_ACTIONS = ['push to github', 'deploy to vercel', 'publish', 'delete', 'drop table'];
+const SENSITIVE_ACTIONS = ['push to github', 'deploy to vercel', 'publish', 'delete', 'drop table', 'update now', 'rollback'];
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -76,7 +76,7 @@ const Dashboard = () => {
         const systemContext = [
           tokens.GITHUB_TOKEN ? 'User has GitHub token configured.' : '',
           tokens.VERCEL_TOKEN ? 'User has Vercel token configured.' : '',
-          isAdmin ? 'User is admin.' : '',
+          isAdmin ? 'User is admin with full access.' : '',
         ].filter(Boolean).join(' ');
 
         let assistantSoFar = '';
@@ -91,6 +91,7 @@ const Dashboard = () => {
             body: JSON.stringify({
               messages: allMessages.map(m => ({ role: m.role, content: m.content })),
               systemContext,
+              isAdmin,
             }),
           }
         );
@@ -98,6 +99,10 @@ const Dashboard = () => {
         if (!resp.ok) {
           if (resp.status === 429) {
             toast({ variant: 'destructive', title: 'রেট লিমিট', description: 'কিছুক্ষণ পর চেষ্টা করুন।' });
+            return;
+          }
+          if (resp.status === 402) {
+            toast({ variant: 'destructive', title: 'ক্রেডিট শেষ', description: 'ক্রেডিট যোগ করুন।' });
             return;
           }
           throw new Error('AI error');
@@ -171,7 +176,6 @@ const Dashboard = () => {
     );
   }
 
-  // Determine what to show in the main area
   const showCentralCard = mode === 'plan' && messages.length === 0;
 
   return (
