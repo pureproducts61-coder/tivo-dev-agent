@@ -16,6 +16,8 @@ import {
   ChevronDown,
   File,
   Folder,
+  Rocket,
+  Eye,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
