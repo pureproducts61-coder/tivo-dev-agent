@@ -258,6 +258,33 @@ export type Database = {
         }
         Relationships: []
       }
+      system_config: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          updated_by: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          updated_by: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          updated_by?: string
+          value?: string
+        }
+        Relationships: []
+      }
       user_credits: {
         Row: {
           created_at: string

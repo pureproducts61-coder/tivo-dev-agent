@@ -16,6 +16,8 @@ import {
   ChevronDown,
   File,
   Folder,
+  Rocket,
+  Eye,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { ProjectChat } from '@/components/dashboard/ProjectChat';
+import { PublishModal } from '@/components/tivo/PublishModal';
 import {
   ResizableHandle,
   ResizablePanel,
@@ -216,6 +219,7 @@ const ProjectEditor = () => {
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [fileContent, setFileContent] = useState('');
   const [showChat, setShowChat] = useState(false);
+  const [showPublish, setShowPublish] = useState(false);
   const [activeTab, setActiveTab] = useState('code');
   const [terminalOutput, setTerminalOutput] = useState<string[]>([
     '$ npm install',
@@ -349,10 +353,18 @@ const ProjectEditor = () => {
                 size="sm"
                 onClick={() => window.open(project.preview_url!, '_blank')}
               >
-                <ExternalLink className="w-4 h-4 mr-2" />
+                <Eye className="w-4 h-4 mr-2" />
                 প্রিভিউ
               </Button>
             )}
+            <Button
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setShowPublish(true)}
+            >
+              <Rocket className="w-4 h-4" />
+              পাবলিশ
+            </Button>
           </div>
         </div>
       </header>
@@ -459,6 +471,14 @@ const ProjectEditor = () => {
           )}
         </ResizablePanelGroup>
       </div>
+
+      {/* Publish Modal */}
+      <PublishModal
+        open={showPublish}
+        onClose={() => setShowPublish(false)}
+        project={project}
+        onProjectUpdated={(p) => setProject(p)}
+      />
     </div>
   );
 };

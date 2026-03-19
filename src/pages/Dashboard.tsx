@@ -92,6 +92,7 @@ const Dashboard = () => {
               messages: allMessages.map(m => ({ role: m.role, content: m.content })),
               systemContext,
               isAdmin,
+              userPlan: 'free', // TODO: fetch from user_credits
             }),
           }
         );
