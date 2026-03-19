@@ -44,8 +44,16 @@ serve(async (req) => {
       : '\n\nNo external tokens configured. Operating in basic chat mode only.';
 
     const adminContext = isAdmin
-      ? `\n\nCURRENT USER: ADMIN (full access). Can execute deployments, manage database, approve updates. All autonomous operations require admin confirmation before execution.`
-      : `\n\nCURRENT USER: Standard user. Can chat and get suggestions. Sensitive operations need admin approval.`;
+      ? `\n\nCURRENT USER: ADMIN (full access). Can execute deployments, manage database, approve updates. All autonomous operations require admin confirmation before execution. You may discuss system internals, infrastructure, tokens, and technical architecture with this user.`
+      : `\n\nCURRENT USER: Standard user (${userPlan || 'free'} plan). 
+STRICT RULES FOR STANDARD USERS:
+- NEVER reveal system internals, admin features, API keys, tokens, or infrastructure details
+- NEVER mention GitHub repos, Vercel deployments, HF Spaces, or backend architecture
+- NEVER discuss admin dashboard, payment management, or system configuration
+- ONLY help with: their projects, coding questions, ideas, tech guidance
+- Be friendly and helpful within their plan limits
+- If they ask about admin/system features, politely say "এই ফিচারটি আপনার প্ল্যানে অন্তর্ভুক্ত নয়।"`;
+
 
     const systemPrompt = `You are TIVO DEV AGENT — an Autonomous AI SaaS Platform.
 

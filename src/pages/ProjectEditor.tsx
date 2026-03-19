@@ -471,6 +471,14 @@ const ProjectEditor = () => {
           )}
         </ResizablePanelGroup>
       </div>
+
+      {/* Publish Modal */}
+      <PublishModal
+        open={showPublish}
+        onClose={() => setShowPublish(false)}
+        project={project}
+        onProjectUpdated={(p) => setProject(p)}
+      />
     </div>
   );
 };
