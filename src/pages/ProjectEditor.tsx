@@ -219,6 +219,7 @@ const ProjectEditor = () => {
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [fileContent, setFileContent] = useState('');
   const [showChat, setShowChat] = useState(false);
+  const [showPublish, setShowPublish] = useState(false);
   const [activeTab, setActiveTab] = useState('code');
   const [terminalOutput, setTerminalOutput] = useState<string[]>([
     '$ npm install',
