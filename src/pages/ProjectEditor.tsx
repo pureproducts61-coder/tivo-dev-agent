@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { ProjectChat } from '@/components/dashboard/ProjectChat';
+import { PublishModal } from '@/components/tivo/PublishModal';
 import {
   ResizableHandle,
   ResizablePanel,
