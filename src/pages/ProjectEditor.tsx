@@ -353,10 +353,18 @@ const ProjectEditor = () => {
                 size="sm"
                 onClick={() => window.open(project.preview_url!, '_blank')}
               >
-                <ExternalLink className="w-4 h-4 mr-2" />
+                <Eye className="w-4 h-4 mr-2" />
                 প্রিভিউ
               </Button>
             )}
+            <Button
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setShowPublish(true)}
+            >
+              <Rocket className="w-4 h-4" />
+              পাবলিশ
+            </Button>
           </div>
         </div>
       </header>

@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Settings2, Users, CreditCard, Cpu, CheckCircle2, XCircle, Clock,
-  RefreshCw, Loader2, Activity, Server, GitBranch, Globe, Zap
+  RefreshCw, Loader2, Activity, Server, GitBranch, Globe, Zap, Save, Eye, EyeOff
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -27,6 +27,14 @@ interface SystemStatus {
   availableCapabilities: string[];
 }
 
+const API_KEY_FIELDS = [
+  { key: 'GEMINI_API_KEY', label: 'Gemini API Key', desc: 'Google Gemini মডেল ব্যবহারের জন্য' },
+  { key: 'GROQ_API_KEY', label: 'Groq API Key', desc: 'Groq-এর দ্রুত LLM ব্যবহারের জন্য' },
+  { key: 'DEEPSEEK_API_KEY', label: 'DeepSeek API Key', desc: 'DeepSeek মডেল ব্যবহারের জন্য' },
+  { key: 'HF_INFERENCE_TOKEN', label: 'HF Inference Token', desc: 'HuggingFace মডেল inference-এর জন্য' },
+  { key: 'TAVILY_API_KEY', label: 'Tavily API Key', desc: 'AI-পাওয়ার্ড ওয়েব সার্চের জন্য' },
+];
+
 export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
   const { user, session } = useAuth();
   const [payments, setPayments] = useState<any[]>([]);
@@ -37,17 +45,18 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
   const [loadingStatus, setLoadingStatus] = useState(false);
 
   // API Management state
-  const [apiKeys, setApiKeys] = useState({
-    gemini: '', groq: '', deepseek: '', hf_inference: '', tavily: '',
-  });
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [apiKeyStatus, setApiKeyStatus] = useState<Record<string, boolean>>({});
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [savingKeys, setSavingKeys] = useState(false);
+  const [loadingKeys, setLoadingKeys] = useState(false);
 
   useEffect(() => {
     if (open) {
       fetchPayments();
       fetchUsers();
       fetchSystemStatus();
-      const stored = localStorage.getItem('tivo_admin_api_keys');
-      if (stored) setApiKeys(JSON.parse(stored));
+      fetchApiKeyStatus();
     }
   }, [open]);
 
@@ -77,6 +86,29 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
       console.error('Failed to fetch system status:', e);
     } finally {
       setLoadingStatus(false);
+    }
+  };
+
+  const fetchApiKeyStatus = async () => {
+    if (!session?.access_token) return;
+    setLoadingKeys(true);
+    try {
+      // Check from system_config table
+      const { data } = await supabase
+        .from('system_config')
+        .select('key, value')
+        .in('key', API_KEY_FIELDS.map(f => f.key));
+
+      const status: Record<string, boolean> = {};
+      API_KEY_FIELDS.forEach(f => {
+        const found = data?.find((d: any) => d.key === f.key);
+        status[f.key] = !!found && found.value.length > 0;
+      });
+      setApiKeyStatus(status);
+    } catch {
+      // fallback
+    } finally {
+      setLoadingKeys(false);
     }
   };
 
@@ -113,9 +145,25 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
     }
   };
 
-  const saveApiKeys = () => {
-    localStorage.setItem('tivo_admin_api_keys', JSON.stringify(apiKeys));
-    toast({ title: '✅ API Keys সেভ হয়েছে' });
+  const saveApiKeys = async () => {
+    setSavingKeys(true);
+    try {
+      for (const [key, value] of Object.entries(apiKeys)) {
+        if (value.trim()) {
+          await supabase.from('system_config').upsert(
+            { key, value: value.trim(), updated_by: user?.id } as any,
+            { onConflict: 'key' }
+          );
+        }
+      }
+      toast({ title: '✅ API Keys সেভ হয়েছে', description: 'সিস্টেম-ওয়াইড API কনফিগারেশন আপডেট হয়েছে।' });
+      setApiKeys({});
+      fetchApiKeyStatus();
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'ত্রুটি', description: e.message });
+    } finally {
+      setSavingKeys(false);
+    }
   };
 
   const statusIcon = (status: string) => {
@@ -177,7 +225,7 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
             </TabsTrigger>
           </TabsList>
 
-          {/* System Autonomy Tab */}
+          {/* System Tab */}
           <TabsContent value="system" className="space-y-4 mt-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground">সিস্টেম স্ট্যাটাস ও অটোনমি</h3>
@@ -190,7 +238,6 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
               <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
             ) : systemStatus ? (
               <div className="space-y-4">
-                {/* Stats */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="glass-card rounded-xl p-3 text-center space-y-1">
                     <Users className="w-4 h-4 text-primary mx-auto" />
@@ -204,7 +251,6 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
                   </div>
                 </div>
 
-                {/* Token Status */}
                 <div className="glass-card rounded-xl p-4 space-y-2">
                   <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <Zap className="w-3.5 h-3.5 text-primary" /> টোকেন স্ট্যাটাস
@@ -219,7 +265,6 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
                   </div>
                 </div>
 
-                {/* Infrastructure */}
                 <div className="glass-card rounded-xl p-4 space-y-3">
                   <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <Server className="w-3.5 h-3.5 text-primary" /> ইনফ্রাস্ট্রাকচার
@@ -246,17 +291,9 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
                       </div>
                       {backendStatusBadge(systemStatus.infrastructure.backend.status)}
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <GitBranch className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">Backend Repo</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-foreground">{systemStatus.infrastructure.backend.repo.split('/')[1]}</span>
-                    </div>
                   </div>
                 </div>
 
-                {/* Update Proposals placeholder */}
                 <div className="glass-card rounded-xl p-4 space-y-2 border-primary/10">
                   <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <Activity className="w-3.5 h-3.5 text-primary" /> আপডেট প্রোপোজাল
@@ -368,29 +405,67 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
             )}
           </TabsContent>
 
-          {/* API Management Tab */}
+          {/* API Management Tab - Enhanced */}
           <TabsContent value="api" className="space-y-4 mt-4">
-            <h3 className="text-sm font-semibold text-foreground">API কনফিগারেশন</h3>
-            {Object.entries({
-              gemini: 'Gemini API Key',
-              groq: 'Groq API Key',
-              deepseek: 'DeepSeek API Key',
-              hf_inference: 'HF Inference Token',
-              tavily: 'Tavily API Key',
-            }).map(([key, label]) => (
-              <div key={key} className="space-y-1">
-                <Label className="text-xs text-muted-foreground">{label}</Label>
-                <Input
-                  type="password"
-                  placeholder={`${label} দিন...`}
-                  value={(apiKeys as any)[key]}
-                  onChange={(e) => setApiKeys(prev => ({ ...prev, [key]: e.target.value }))}
-                  className="bg-muted/50 border-border text-xs font-mono"
-                />
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">সিস্টেম-ওয়াইড API কনফিগারেশন</h3>
+              <Button size="sm" variant="ghost" onClick={fetchApiKeyStatus} className="gap-1 text-xs">
+                <RefreshCw className="w-3.5 h-3.5" /> রিফ্রেশ
+              </Button>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground">
+              এই API Keys সমস্ত ইউজারদের সার্ভিসের জন্য সিস্টেম-ওয়াইড ব্যবহৃত হবে। ইউজাররা তাদের প্ল্যান অনুযায়ী সার্ভিস পাবে।
+            </p>
+
+            {loadingKeys ? (
+              <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+            ) : (
+              <div className="space-y-3">
+                {API_KEY_FIELDS.map(({ key, label, desc }) => (
+                  <div key={key} className="glass-card rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-xs font-medium text-foreground">{label}</Label>
+                        <p className="text-[10px] text-muted-foreground">{desc}</p>
+                      </div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                        apiKeyStatus[key] ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {apiKeyStatus[key] ? '✅ সেট করা আছে' : '⚪ সেট নেই'}
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        type={showKeys[key] ? 'text' : 'password'}
+                        placeholder={`নতুন ${label} দিন...`}
+                        value={apiKeys[key] || ''}
+                        onChange={(e) => setApiKeys(prev => ({ ...prev, [key]: e.target.value }))}
+                        className="bg-muted/50 border-border text-xs font-mono pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowKeys(prev => ({ ...prev, [key]: !prev[key] }))}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showKeys[key] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-            <Button onClick={saveApiKeys} className="w-full gap-2">
-              <Settings2 className="w-4 h-4" /> সেভ করুন
+            )}
+
+            <Button
+              onClick={saveApiKeys}
+              disabled={savingKeys || Object.values(apiKeys).every(v => !v.trim())}
+              className="w-full gap-2"
+            >
+              {savingKeys ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> সেভ হচ্ছে...</>
+              ) : (
+                <><Save className="w-4 h-4" /> সিস্টেম কনফিগ সেভ করুন</>
+              )}
             </Button>
           </TabsContent>
         </Tabs>
