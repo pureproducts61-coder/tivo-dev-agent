@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { BackendConfigProvider } from "@/hooks/useBackendConfig";
+import { BackendApiProvider } from "@/hooks/useBackendApi";
 import { AppModeProvider } from "@/hooks/useAppMode";
 import { TokenProvider } from "@/hooks/useTokens";
 import { AdminProvider } from "@/hooks/useAdmin";
@@ -22,6 +23,7 @@ const App = () => (
         <TokenProvider>
           <AdminProvider>
             <BackendConfigProvider>
+              <BackendApiProvider>
               <AppModeProvider>
               <Toaster />
               <Sonner />
@@ -34,6 +36,7 @@ const App = () => (
                 </Routes>
               </BrowserRouter>
               </AppModeProvider>
+              </BackendApiProvider>
             </BackendConfigProvider>
           </AdminProvider>
         </TokenProvider>
