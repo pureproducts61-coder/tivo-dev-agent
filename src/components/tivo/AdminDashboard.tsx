@@ -8,9 +8,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Settings2, Users, CreditCard, Cpu, CheckCircle2, XCircle, Clock,
-  RefreshCw, Loader2, Activity, Server, GitBranch, Globe, Zap, Save, Eye, EyeOff
+  RefreshCw, Loader2, Activity, Server, GitBranch, Globe, Zap, Save, Eye, EyeOff, Shield
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AdminPermissions } from './AdminPermissions';
 
 interface AdminDashboardProps {
   open: boolean;
@@ -210,7 +211,7 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
         </DialogHeader>
 
         <Tabs defaultValue="system" className="w-full">
-          <TabsList className="w-full grid grid-cols-4 bg-muted/30">
+          <TabsList className="w-full grid grid-cols-5 bg-muted/30">
             <TabsTrigger value="system" className="gap-1 text-[10px] sm:text-xs">
               <Activity className="w-3.5 h-3.5" /> সিস্টেম
             </TabsTrigger>
@@ -219,6 +220,9 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
             </TabsTrigger>
             <TabsTrigger value="users" className="gap-1 text-[10px] sm:text-xs">
               <Users className="w-3.5 h-3.5" /> ইউজার
+            </TabsTrigger>
+            <TabsTrigger value="permissions" className="gap-1 text-[10px] sm:text-xs">
+              <Shield className="w-3.5 h-3.5" /> পারমিশন
             </TabsTrigger>
             <TabsTrigger value="api" className="gap-1 text-[10px] sm:text-xs">
               <Cpu className="w-3.5 h-3.5" /> API
@@ -403,6 +407,11 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* Permissions Tab */}
+          <TabsContent value="permissions" className="mt-4">
+            <AdminPermissions />
           </TabsContent>
 
           {/* API Management Tab - Enhanced */}
