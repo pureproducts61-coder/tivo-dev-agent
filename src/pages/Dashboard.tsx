@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { useTokens } from '@/hooks/useTokens';
 import { useAdmin } from '@/hooks/useAdmin';
+import { useBackendApi } from '@/hooks/useBackendApi';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/tivo/Header';
 import { AppSidebar } from '@/components/tivo/AppSidebar';
@@ -25,6 +26,7 @@ const Dashboard = () => {
   const { mode } = useAppMode();
   const { tokens } = useTokens();
   const { isAdmin } = useAdmin();
+  const { isConnected, chatStream, status: backendStatus } = useBackendApi();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('automated');
@@ -71,7 +73,64 @@ const Dashboard = () => {
     setIsLoading(true);
 
     try {
-      if (mode === 'plan') {
+      // Use HF backend if connected, otherwise fall back to edge function
+      if (mode === 'plan' && isConnected) {
+        // === HF Backend streaming ===
+        let assistantSoFar = '';
+        try {
+          const stream = await chatStream(
+            [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
+            { isAdmin, systemContext: isAdmin ? 'Admin with full access' : 'Standard user' }
+          );
+          if (stream) {
+            const reader = stream.getReader();
+            const decoder = new TextDecoder();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              const chunk = decoder.decode(value, { stream: true });
+              // Handle SSE or raw text
+              const lines = chunk.split('\n');
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const json = line.slice(6).trim();
+                  if (json === '[DONE]') continue;
+                  try {
+                    const parsed = JSON.parse(json);
+                    const content = parsed.choices?.[0]?.delta?.content || parsed.content || parsed.text || '';
+                    if (content) {
+                      assistantSoFar += content;
+                      setMessages(prev => {
+                        const last = prev[prev.length - 1];
+                        if (last?.role === 'assistant') {
+                          return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+                        }
+                        return [...prev, { role: 'assistant', content: assistantSoFar }];
+                      });
+                    }
+                  } catch {}
+                } else if (line.trim() && !line.startsWith(':')) {
+                  assistantSoFar += line;
+                  setMessages(prev => {
+                    const last = prev[prev.length - 1];
+                    if (last?.role === 'assistant') {
+                      return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+                    }
+                    return [...prev, { role: 'assistant', content: assistantSoFar }];
+                  });
+                }
+              }
+            }
+          }
+          if (assistantSoFar) await addMessage('assistant', assistantSoFar);
+          const sensitiveAction = checkForSensitiveAction(assistantSoFar);
+          if (sensitiveAction) setPendingAction(sensitiveAction);
+        } catch (backendErr) {
+          console.warn('HF backend failed, falling back to edge function:', backendErr);
+          // Fall through to edge function below
+          await handleEdgeFunctionChat([...messages, userMsg]);
+        }
+      } else if (mode === 'plan') {
         const allMessages = [...messages, userMsg];
         const systemContext = [
           tokens.GITHUB_TOKEN ? 'User has GitHub token configured.' : '',
@@ -157,7 +216,77 @@ const Dashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [messages, mode, tokens, activeSessionId, createSession, addMessage, setMessages, isAdmin]);
+  }, [messages, mode, tokens, activeSessionId, createSession, addMessage, setMessages, isAdmin, isConnected, chatStream]);
+
+  const handleEdgeFunctionChat = async (allMessages: any[]) => {
+    const systemContext = [
+      tokens.GITHUB_TOKEN ? 'User has GitHub token configured.' : '',
+      tokens.VERCEL_TOKEN ? 'User has Vercel token configured.' : '',
+      isAdmin ? 'User is admin with full access.' : '',
+    ].filter(Boolean).join(' ');
+
+    let assistantSoFar = '';
+    const resp = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/project-chat`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: allMessages.map(m => ({ role: m.role, content: m.content })),
+          systemContext,
+          isAdmin,
+          userPlan: 'free',
+        }),
+      }
+    );
+
+    if (!resp.ok) {
+      if (resp.status === 429) { toast({ variant: 'destructive', title: 'রেট লিমিট' }); return; }
+      if (resp.status === 402) { toast({ variant: 'destructive', title: 'ক্রেডিট শেষ' }); return; }
+      throw new Error('AI error');
+    }
+    if (!resp.body) throw new Error('No stream');
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let newlineIdx: number;
+      while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
+        let line = buffer.slice(0, newlineIdx);
+        buffer = buffer.slice(newlineIdx + 1);
+        if (line.endsWith('\r')) line = line.slice(0, -1);
+        if (line.startsWith(':') || line.trim() === '') continue;
+        if (!line.startsWith('data: ')) continue;
+        const json = line.slice(6).trim();
+        if (json === '[DONE]') break;
+        try {
+          const parsed = JSON.parse(json);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            assistantSoFar += content;
+            setMessages(prev => {
+              const last = prev[prev.length - 1];
+              if (last?.role === 'assistant') {
+                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+              }
+              return [...prev, { role: 'assistant', content: assistantSoFar }];
+            });
+          }
+        } catch { buffer = line + '\n' + buffer; break; }
+      }
+    }
+    if (assistantSoFar) await addMessage('assistant', assistantSoFar);
+    const sensitiveAction = checkForSensitiveAction(assistantSoFar);
+    if (sensitiveAction) setPendingAction(sensitiveAction);
+  };
 
   const handleConfirmAction = () => {
     toast({ title: '✅ কার্যকর হচ্ছে', description: `"${pendingAction}" চলছে...` });
