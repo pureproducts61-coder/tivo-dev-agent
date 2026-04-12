@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Button } from '@/components/ui/button';
 import { BrandLogo } from './BrandLogo';
 import { LogOut, User, Palette, Languages, Zap } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
 
 interface HeaderProps {
   activeTab: string;
@@ -33,6 +34,8 @@ export const Header = ({ activeTab, onTabChange, onOpenSettings, onOpenAdmin }: 
           <span className="font-bold text-lg gradient-text">TIVO DEV</span>
         </div>
 
+        <div className="flex items-center gap-1">
+        <NotificationBell />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-lg">
@@ -66,6 +69,7 @@ export const Header = ({ activeTab, onTabChange, onOpenSettings, onOpenAdmin }: 
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
     </header>
   );
