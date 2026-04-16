@@ -1,16 +1,9 @@
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
-// Backend connection config
-const getHfUrl = () => {
-  // Try Vercel env vars first, then localStorage fallback
-  return import.meta.env.VITE_HF_SPACE_URL || localStorage.getItem('tivo_backend_url') || '';
-};
-
-const getMasterSecret = () => {
-  return import.meta.env.VITE_MASTER_SECRET || localStorage.getItem('tivo_master_secret') || '';
-};
+const getBackendUrl = () => import.meta.env.VITE_HF_SPACE_URL || import.meta.env.VITE_BACKEND_URL || localStorage.getItem('tivo_backend_url') || '';
+const getMasterSecret = () => import.meta.env.VITE_MASTER_SECRET || import.meta.env.VITE_HF_MASTER_SECRET || localStorage.getItem('tivo_master_secret') || '';
 
 export type ConnectionStatus = 'connected' | 'disconnected' | 'checking' | 'sleeping';
 
@@ -18,229 +11,208 @@ interface BackendApiContextType {
   status: ConnectionStatus;
   isConnected: boolean;
   backendUrl: string;
+  backendVersion: string;
   checkConnection: () => Promise<any>;
-  // AI Engine
+  // v7.0 API methods
+  apiCall: (functionName: string, action: string, method: string, body?: any, stream?: boolean) => Promise<any>;
   chatStream: (messages: any[], options?: any) => Promise<ReadableStream | null>;
-  autoBuild: (prompt: string, options?: any) => Promise<any>;
-  fullStackBuild: (prompt: string, options?: any) => Promise<any>;
-  buildNative: (projectId: string, platform: 'apk' | 'exe') => Promise<any>;
+  generateCode: (prompt: string, opts?: any) => Promise<any>;
+  generateProject: (description: string, opts?: any) => Promise<any>;
+  autoBuild: (description: string, opts?: any) => Promise<any>;
+  fullStackBuild: (description: string, opts?: any) => Promise<any>;
+  buildNative: (projectId: string, buildType: 'apk' | 'exe') => Promise<any>;
   reviewCode: (code: string, lang?: string) => Promise<any>;
-  fixCode: (code: string, error: string) => Promise<any>;
-  refactorCode: (code: string, instructions: string) => Promise<any>;
+  fixCode: (code: string, error?: string) => Promise<any>;
+  refactorCode: (code: string, goal?: string) => Promise<any>;
   convertCode: (code: string, from: string, to: string) => Promise<any>;
   generateApi: (spec: any) => Promise<any>;
-  generateDocs: (code: string) => Promise<any>;
-  suggest: (input: string) => Promise<any>;
+  generateDocs: (code: string, docType?: string) => Promise<any>;
+  generateImage: (prompt: string, opts?: any) => Promise<any>;
+  editImage: (imageUrl: string, instruction: string) => Promise<any>;
+  processFile: (fileContent: string, fileType?: string, fileName?: string, instruction?: string) => Promise<any>;
+  suggest: (intent: string) => Promise<any>;
   // Project Manager
-  listProjects: () => Promise<any>;
+  listProjects: (userId?: string) => Promise<any>;
   getProject: (id: string) => Promise<any>;
   createProject: (data: any) => Promise<any>;
-  updateProject: (id: string, data: any) => Promise<any>;
+  updateProject: (data: any) => Promise<any>;
   deleteProject: (id: string) => Promise<any>;
-  uploadFiles: (projectId: string, files: File[]) => Promise<any>;
-  publishProject: (projectId: string, target: string) => Promise<any>;
-  downloadProject: (projectId: string) => Promise<Blob | null>;
+  uploadFiles: (projectId: string, files: any[]) => Promise<any>;
+  publishProject: (projectId: string) => Promise<any>;
+  downloadProject: (projectId: string) => Promise<any>;
   getVersions: (projectId: string) => Promise<any>;
-  getPublicUrl: (projectId: string) => Promise<any>;
-  // Sandbox & Testing
-  validateCode: (code: string) => Promise<any>;
-  auditCode: (code: string) => Promise<any>;
-  visualAudit: (url: string) => Promise<any>;
-  generateTests: (code: string) => Promise<any>;
-  autoTestFix: (code: string, testResults: any) => Promise<any>;
-  optimizeCode: (code: string) => Promise<any>;
-  factory: (template: string, options?: any) => Promise<any>;
-  executeCode: (code: string, lang?: string) => Promise<any>;
-  codeToImage: (code: string, options?: any) => Promise<any>;
-  generateSchema: (description: string) => Promise<any>;
+  // Sandbox
+  validateCode: (code: string, opts?: any) => Promise<any>;
+  auditCode: (opts?: any) => Promise<any>;
+  visualAudit: (opts?: any) => Promise<any>;
+  autoTestFix: (opts?: any) => Promise<any>;
+  generateTests: (code: string, opts?: any) => Promise<any>;
+  optimizeCode: (code: string, opts?: any) => Promise<any>;
+  factory: (description: string, opts?: any) => Promise<any>;
+  executeCommand: (command: string, params?: any) => Promise<any>;
+  codeToImage: (opts?: any) => Promise<any>;
+  generateSchema: (description: string, opts?: any) => Promise<any>;
+  deployAutomation: (projectId: string, platform: string) => Promise<any>;
+  generateComponents: (description: string, opts?: any) => Promise<any>;
   analyzeDeps: (packageJson: any) => Promise<any>;
-  // System & Monitoring
+  // System
   getHealth: () => Promise<any>;
+  getCapabilities: () => Promise<any>;
   getStats: () => Promise<any>;
   getLogs: (limit?: number) => Promise<any>;
-  frontendGuide: (feature: string) => Promise<any>;
+  frontendGuide: () => Promise<any>;
 }
 
 const BackendApiContext = createContext<BackendApiContextType | undefined>(undefined);
 
-// Generic backend fetch
-const backendFetch = async (path: string, options?: RequestInit & { stream?: boolean }) => {
-  const url = getHfUrl();
-  const secret = getMasterSecret();
-  if (!url) throw new Error('Backend URL not configured');
-
-  const res = await fetch(`${url.replace(/\/$/, '')}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(secret ? { 'x-master-secret': secret } : {}),
-      ...options?.headers,
-    },
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => 'Unknown error');
-    throw new Error(`Backend ${res.status}: ${text}`);
+// Retry with exponential backoff
+const fetchWithRetry = async (url: string, options: RequestInit, maxRetries = 3): Promise<Response> => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok || res.status < 500) return res;
+    } catch (e) {
+      if (i === maxRetries - 1) throw e;
+    }
+    await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
   }
-
-  if (options?.stream) return res;
-  return res.json();
+  throw new Error('Max retries reached');
 };
 
 export const BackendApiProvider = ({ children }: { children: ReactNode }) => {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
-  const { session } = useAuth();
+  const [backendVersion, setBackendVersion] = useState('');
+  const healthInterval = useRef<ReturnType<typeof setInterval>>();
 
   const isConnected = status === 'connected';
-  const backendUrl = getHfUrl();
+  const backendUrl = getBackendUrl();
 
-  const checkConnection = useCallback(async () => {
-    if (!getHfUrl()) {
-      setStatus('disconnected');
-      return { status: 'disconnected', reason: 'No backend URL' };
-    }
-    setStatus('checking');
-    try {
-      const data = await backendFetch('/api/health');
-      if (data?.status === 'sleeping') {
-        setStatus('sleeping');
-      } else {
-        setStatus('connected');
-      }
-      return data;
-    } catch (e: any) {
-      if (e.message?.includes('503') || e.message?.includes('sleeping')) {
-        setStatus('sleeping');
-      } else {
-        setStatus('disconnected');
-      }
-      return { status: 'disconnected', error: e.message };
-    }
-  }, []);
-
-  // Check on mount
-  useEffect(() => {
-    if (getHfUrl()) checkConnection();
-  }, [checkConnection]);
-
-  // === AI Engine ===
-  const chatStream = useCallback(async (messages: any[], options?: any) => {
-    const res = await backendFetch('/api/chat/stream', {
-      method: 'POST',
-      body: JSON.stringify({ messages, ...options }),
-      stream: true,
-    });
-    return res?.body || null;
-  }, []);
-
-  const autoBuild = useCallback(async (prompt: string, options?: any) => {
-    return backendFetch('/api/build/auto', { method: 'POST', body: JSON.stringify({ prompt, ...options }) });
-  }, []);
-
-  const fullStackBuild = useCallback(async (prompt: string, options?: any) => {
-    return backendFetch('/api/build/fullstack', { method: 'POST', body: JSON.stringify({ prompt, ...options }) });
-  }, []);
-
-  const buildNative = useCallback(async (projectId: string, platform: 'apk' | 'exe') => {
-    return backendFetch('/api/build/native', { method: 'POST', body: JSON.stringify({ projectId, platform }) });
-  }, []);
-
-  const reviewCode = useCallback(async (code: string, lang?: string) => {
-    return backendFetch('/api/code/review', { method: 'POST', body: JSON.stringify({ code, language: lang }) });
-  }, []);
-
-  const fixCode = useCallback(async (code: string, error: string) => {
-    return backendFetch('/api/code/fix', { method: 'POST', body: JSON.stringify({ code, error }) });
-  }, []);
-
-  const refactorCode = useCallback(async (code: string, instructions: string) => {
-    return backendFetch('/api/code/refactor', { method: 'POST', body: JSON.stringify({ code, instructions }) });
-  }, []);
-
-  const convertCode = useCallback(async (code: string, from: string, to: string) => {
-    return backendFetch('/api/code/convert', { method: 'POST', body: JSON.stringify({ code, from, to }) });
-  }, []);
-
-  const generateApi = useCallback(async (spec: any) => {
-    return backendFetch('/api/generate/api', { method: 'POST', body: JSON.stringify(spec) });
-  }, []);
-
-  const generateDocs = useCallback(async (code: string) => {
-    return backendFetch('/api/generate/docs', { method: 'POST', body: JSON.stringify({ code }) });
-  }, []);
-
-  const suggest = useCallback(async (input: string) => {
-    return backendFetch('/api/suggest', { method: 'POST', body: JSON.stringify({ input }) });
-  }, []);
-
-  // === Project Manager ===
-  const listProjects = useCallback(async () => backendFetch('/api/projects'), []);
-  const getProject = useCallback(async (id: string) => backendFetch(`/api/projects/${id}`), []);
-  const createProject = useCallback(async (data: any) => backendFetch('/api/projects', { method: 'POST', body: JSON.stringify(data) }), []);
-  const updateProject = useCallback(async (id: string, data: any) => backendFetch(`/api/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }), []);
-  const deleteProject = useCallback(async (id: string) => backendFetch(`/api/projects/${id}`, { method: 'DELETE' }), []);
-
-  const uploadFiles = useCallback(async (projectId: string, files: File[]) => {
-    const formData = new FormData();
-    files.forEach(f => formData.append('files', f));
-    const url = getHfUrl();
+  // v7.0 API URL format: ${BACKEND_URL}/functions/v1/{function-name}/{action}
+  const apiCall = useCallback(async (functionName: string, action: string, method: string, body?: any, stream?: boolean) => {
+    const url = getBackendUrl();
     const secret = getMasterSecret();
-    const res = await fetch(`${url}/api/projects/${projectId}/upload`, {
-      method: 'POST',
-      headers: secret ? { 'x-master-secret': secret } : {},
-      body: formData,
+    if (!url) throw new Error('Backend URL not configured');
+
+    const fullUrl = `${url.replace(/\/$/, '')}/functions/v1/${functionName}/${action}`;
+    const res = await fetchWithRetry(fullUrl, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(secret ? { 'x-master-secret': secret } : {}),
+      },
+      ...(body && method !== 'GET' ? { body: JSON.stringify(body) } : {}),
     });
-    if (!res.ok) throw new Error('Upload failed');
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => 'Unknown error');
+      throw new Error(`Backend ${res.status}: ${text}`);
+    }
+    if (stream) return res;
     return res.json();
   }, []);
 
-  const publishProject = useCallback(async (projectId: string, target: string) => {
-    return backendFetch(`/api/projects/${projectId}/publish`, { method: 'POST', body: JSON.stringify({ target }) });
-  }, []);
+  const checkConnection = useCallback(async () => {
+    if (!getBackendUrl()) { setStatus('disconnected'); return { status: 'disconnected' }; }
+    setStatus('checking');
+    try {
+      const data = await apiCall('backend-api', 'health', 'GET');
+      if (data?.status === 'sleeping') { setStatus('sleeping'); }
+      else { setStatus('connected'); }
+      if (data?.version) setBackendVersion(data.version);
+      return data;
+    } catch (e: any) {
+      if (e.message?.includes('503') || e.message?.includes('sleeping')) { setStatus('sleeping'); }
+      else { setStatus('disconnected'); }
+      return { status: 'disconnected', error: e.message };
+    }
+  }, [apiCall]);
 
-  const downloadProject = useCallback(async (projectId: string) => {
-    const url = getHfUrl();
+  useEffect(() => {
+    if (getBackendUrl()) checkConnection();
+    healthInterval.current = setInterval(() => { if (getBackendUrl()) checkConnection(); }, 60000);
+    return () => { if (healthInterval.current) clearInterval(healthInterval.current); };
+  }, [checkConnection]);
+
+  // AI Engine methods
+  const chatStream = useCallback(async (messages: any[], options?: any) => {
+    const url = getBackendUrl();
     const secret = getMasterSecret();
-    const res = await fetch(`${url}/api/projects/${projectId}/download`, {
-      headers: secret ? { 'x-master-secret': secret } : {},
+    if (!url) return null;
+    const res = await fetchWithRetry(`${url.replace(/\/$/, '')}/functions/v1/ai-engine/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(secret ? { 'x-master-secret': secret } : {}) },
+      body: JSON.stringify({ messages, stream: true, ...options }),
     });
-    if (!res.ok) return null;
-    return res.blob();
+    if (!res.ok) throw new Error(`Stream error ${res.status}`);
+    return res.body;
   }, []);
 
-  const getVersions = useCallback(async (projectId: string) => backendFetch(`/api/projects/${projectId}/versions`), []);
-  const getPublicUrl = useCallback(async (projectId: string) => backendFetch(`/api/projects/${projectId}/public-url`), []);
+  const generateCode = useCallback((prompt: string, opts?: any) => apiCall('ai-engine', 'generate', 'POST', { prompt, ...opts }), [apiCall]);
+  const generateProject = useCallback((description: string, opts?: any) => apiCall('ai-engine', 'generate-project', 'POST', { description, ...opts }), [apiCall]);
+  const autoBuild = useCallback((description: string, opts?: any) => apiCall('ai-engine', 'auto-build', 'POST', { description, ...opts }), [apiCall]);
+  const fullStackBuild = useCallback((description: string, opts?: any) => apiCall('ai-engine', 'full-stack-build', 'POST', { description, ...opts }), [apiCall]);
+  const buildNative = useCallback((projectId: string, buildType: 'apk' | 'exe') =>
+    apiCall('ai-engine', 'build-native', 'POST', { project_id: projectId, build_type: buildType, hf_space_url: import.meta.env.VITE_HF_SPACE_URL || '' }), [apiCall]);
+  const reviewCode = useCallback((code: string, lang?: string) => apiCall('ai-engine', 'review', 'POST', { code, language: lang }), [apiCall]);
+  const fixCode = useCallback((code: string, error?: string) => apiCall('ai-engine', 'fix', 'POST', { code, error_message: error }), [apiCall]);
+  const refactorCode = useCallback((code: string, goal?: string) => apiCall('ai-engine', 'refactor', 'POST', { code, goal }), [apiCall]);
+  const convertCode = useCallback((code: string, from: string, to: string) => apiCall('ai-engine', 'convert', 'POST', { code, from_language: from, to_language: to }), [apiCall]);
+  const generateApi = useCallback((spec: any) => apiCall('ai-engine', 'generate-api', 'POST', spec), [apiCall]);
+  const generateDocs = useCallback((code: string, docType?: string) => apiCall('ai-engine', 'generate-docs', 'POST', { code, doc_type: docType }), [apiCall]);
+  const generateImage = useCallback((prompt: string, opts?: any) => apiCall('ai-engine', 'generate-image', 'POST', { prompt, ...opts }), [apiCall]);
+  const editImage = useCallback((imageUrl: string, instruction: string) => apiCall('ai-engine', 'edit-image', 'POST', { image_url: imageUrl, instruction }), [apiCall]);
+  const processFile = useCallback((fileContent: string, fileType?: string, fileName?: string, instruction?: string) =>
+    apiCall('ai-engine', 'process-file', 'POST', { file_content: fileContent, file_type: fileType, file_name: fileName, instruction }), [apiCall]);
+  const suggest = useCallback((intent: string) => apiCall('backend-api', 'suggest', 'POST', { intent }), [apiCall]);
 
-  // === Sandbox & Testing ===
-  const validateCode = useCallback(async (code: string) => backendFetch('/api/sandbox/validate', { method: 'POST', body: JSON.stringify({ code }) }), []);
-  const auditCode = useCallback(async (code: string) => backendFetch('/api/sandbox/audit', { method: 'POST', body: JSON.stringify({ code }) }), []);
-  const visualAudit = useCallback(async (url: string) => backendFetch('/api/sandbox/visual-audit', { method: 'POST', body: JSON.stringify({ url }) }), []);
-  const generateTests = useCallback(async (code: string) => backendFetch('/api/sandbox/generate-tests', { method: 'POST', body: JSON.stringify({ code }) }), []);
-  const autoTestFix = useCallback(async (code: string, testResults: any) => backendFetch('/api/sandbox/auto-test-fix', { method: 'POST', body: JSON.stringify({ code, testResults }) }), []);
-  const optimizeCode = useCallback(async (code: string) => backendFetch('/api/sandbox/optimize', { method: 'POST', body: JSON.stringify({ code }) }), []);
-  const factory = useCallback(async (template: string, options?: any) => backendFetch('/api/sandbox/factory', { method: 'POST', body: JSON.stringify({ template, ...options }) }), []);
-  const executeCode = useCallback(async (code: string, lang?: string) => backendFetch('/api/sandbox/execute', { method: 'POST', body: JSON.stringify({ code, language: lang }) }), []);
-  const codeToImage = useCallback(async (code: string, options?: any) => backendFetch('/api/sandbox/code-to-image', { method: 'POST', body: JSON.stringify({ code, ...options }) }), []);
-  const generateSchema = useCallback(async (description: string) => backendFetch('/api/sandbox/generate-schema', { method: 'POST', body: JSON.stringify({ description }) }), []);
-  const analyzeDeps = useCallback(async (packageJson: any) => backendFetch('/api/sandbox/analyze-deps', { method: 'POST', body: JSON.stringify(packageJson) }), []);
+  // Project Manager
+  const listProjects = useCallback((userId?: string) => {
+    const url = getBackendUrl();
+    const params = userId ? `?user_id=${userId}` : '';
+    return apiCall('project-manager', `list${params}`, 'GET');
+  }, [apiCall]);
+  const getProject = useCallback((id: string) => apiCall('project-manager', `get?id=${id}`, 'GET'), [apiCall]);
+  const createProject = useCallback((data: any) => apiCall('project-manager', 'create', 'POST', data), [apiCall]);
+  const updateProject = useCallback((data: any) => apiCall('project-manager', 'update', 'PUT', data), [apiCall]);
+  const deleteProject = useCallback((id: string) => apiCall('project-manager', 'delete', 'DELETE', { id }), [apiCall]);
+  const uploadFiles = useCallback((projectId: string, files: any[]) => apiCall('project-manager', 'upload-files', 'POST', { project_id: projectId, files }), [apiCall]);
+  const publishProject = useCallback((projectId: string) => apiCall('project-manager', 'publish', 'POST', { project_id: projectId }), [apiCall]);
+  const downloadProject = useCallback((projectId: string) => apiCall('project-manager', `download?id=${projectId}`, 'GET'), [apiCall]);
+  const getVersions = useCallback((projectId: string) => apiCall('project-manager', `versions?id=${projectId}`, 'GET'), [apiCall]);
 
-  // === System ===
-  const getHealth = useCallback(async () => backendFetch('/api/health'), []);
-  const getStats = useCallback(async () => backendFetch('/api/stats'), []);
-  const getLogs = useCallback(async (limit = 50) => backendFetch(`/api/logs?limit=${limit}`), []);
-  const frontendGuide = useCallback(async (feature: string) => backendFetch(`/api/guide/${feature}`), []);
+  // Sandbox
+  const validateCode = useCallback((code: string, opts?: any) => apiCall('sandbox', 'validate', 'POST', { code, ...opts }), [apiCall]);
+  const auditCode = useCallback((opts?: any) => apiCall('sandbox', 'audit', 'POST', opts), [apiCall]);
+  const visualAudit = useCallback((opts?: any) => apiCall('sandbox', 'visual-audit', 'POST', opts), [apiCall]);
+  const autoTestFix = useCallback((opts?: any) => apiCall('sandbox', 'auto-test-fix', 'POST', opts), [apiCall]);
+  const generateTests = useCallback((code: string, opts?: any) => apiCall('sandbox', 'generate-tests', 'POST', { code, ...opts }), [apiCall]);
+  const optimizeCode = useCallback((code: string, opts?: any) => apiCall('sandbox', 'optimize', 'POST', { code, ...opts }), [apiCall]);
+  const factory = useCallback((description: string, opts?: any) => apiCall('sandbox', 'factory', 'POST', { description, ...opts }), [apiCall]);
+  const executeCommand = useCallback((command: string, params?: any) => apiCall('sandbox', 'execute', 'POST', { command, params }), [apiCall]);
+  const codeToImage = useCallback((opts?: any) => apiCall('sandbox', 'code-to-image', 'POST', opts), [apiCall]);
+  const generateSchema = useCallback((description: string, opts?: any) => apiCall('sandbox', 'generate-schema', 'POST', { description, ...opts }), [apiCall]);
+  const deployAutomation = useCallback((projectId: string, platform: string) => apiCall('sandbox', 'deploy-automation', 'POST', { project_id: projectId, platform }), [apiCall]);
+  const generateComponents = useCallback((description: string, opts?: any) => apiCall('sandbox', 'generate-components', 'POST', { description, ...opts }), [apiCall]);
+  const analyzeDeps = useCallback((packageJson: any) => apiCall('sandbox', 'analyze-deps', 'POST', { package_json: packageJson }), [apiCall]);
+
+  // System
+  const getHealth = useCallback(() => apiCall('backend-api', 'health', 'GET'), [apiCall]);
+  const getCapabilities = useCallback(() => apiCall('backend-api', 'capabilities', 'GET'), [apiCall]);
+  const getStats = useCallback(() => apiCall('backend-api', 'stats', 'GET'), [apiCall]);
+  const getLogs = useCallback((limit = 50) => apiCall('backend-api', `logs?limit=${limit}`, 'GET'), [apiCall]);
+  const frontendGuide = useCallback(() => apiCall('backend-api', 'frontend-ai-guide', 'GET'), [apiCall]);
 
   return (
     <BackendApiContext.Provider value={{
-      status, isConnected, backendUrl, checkConnection,
-      chatStream, autoBuild, fullStackBuild, buildNative,
-      reviewCode, fixCode, refactorCode, convertCode,
-      generateApi, generateDocs, suggest,
+      status, isConnected, backendUrl, backendVersion, checkConnection, apiCall,
+      chatStream, generateCode, generateProject, autoBuild, fullStackBuild, buildNative,
+      reviewCode, fixCode, refactorCode, convertCode, generateApi, generateDocs,
+      generateImage, editImage, processFile, suggest,
       listProjects, getProject, createProject, updateProject, deleteProject,
-      uploadFiles, publishProject, downloadProject, getVersions, getPublicUrl,
-      validateCode, auditCode, visualAudit, generateTests, autoTestFix,
-      optimizeCode, factory, executeCode, codeToImage, generateSchema, analyzeDeps,
-      getHealth, getStats, getLogs, frontendGuide,
+      uploadFiles, publishProject, downloadProject, getVersions,
+      validateCode, auditCode, visualAudit, autoTestFix, generateTests, optimizeCode,
+      factory, executeCommand, codeToImage, generateSchema, deployAutomation, generateComponents, analyzeDeps,
+      getHealth, getCapabilities, getStats, getLogs, frontendGuide,
     }}>
       {children}
     </BackendApiContext.Provider>
