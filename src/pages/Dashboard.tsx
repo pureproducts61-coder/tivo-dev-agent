@@ -4,6 +4,7 @@ import { useAppMode } from '@/hooks/useAppMode';
 import { useTokens } from '@/hooks/useTokens';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useBackendApi } from '@/hooks/useBackendApi';
+import { useConfigStatus } from '@/hooks/useConfigStatus';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/tivo/Header';
 import { AppSidebar } from '@/components/tivo/AppSidebar';
@@ -27,6 +28,7 @@ const Dashboard = () => {
   const { tokens } = useTokens();
   const { isAdmin } = useAdmin();
   const { isConnected, chatStream, status: backendStatus } = useBackendApi();
+  const { configStatus } = useConfigStatus();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('automated');
@@ -136,6 +138,7 @@ const Dashboard = () => {
           tokens.GITHUB_TOKEN ? 'User has GitHub token configured.' : '',
           tokens.VERCEL_TOKEN ? 'User has Vercel token configured.' : '',
           isAdmin ? 'User is admin with full access.' : '',
+          configStatus ? `\n[System Config Status]\n${configStatus.summary}` : '',
         ].filter(Boolean).join(' ');
 
         let assistantSoFar = '';
@@ -223,6 +226,7 @@ const Dashboard = () => {
       tokens.GITHUB_TOKEN ? 'User has GitHub token configured.' : '',
       tokens.VERCEL_TOKEN ? 'User has Vercel token configured.' : '',
       isAdmin ? 'User is admin with full access.' : '',
+      configStatus ? `\n[System Config Status]\n${configStatus.summary}` : '',
     ].filter(Boolean).join(' ');
 
     let assistantSoFar = '';
