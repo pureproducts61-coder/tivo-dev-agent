@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_proposals: {
+        Row: {
+          action_type: string
+          created_at: string
+          description: string
+          estimated_cost: number | null
+          executed_at: string | null
+          execution_result: Json | null
+          id: string
+          payload: Json
+          requested_by: string | null
+          review_note: string | null
+          reviewed_by: string | null
+          risk_level: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          description: string
+          estimated_cost?: number | null
+          executed_at?: string | null
+          execution_result?: Json | null
+          id?: string
+          payload?: Json
+          requested_by?: string | null
+          review_note?: string | null
+          reviewed_by?: string | null
+          risk_level?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          description?: string
+          estimated_cost?: number | null
+          executed_at?: string | null
+          execution_result?: Json | null
+          id?: string
+          payload?: Json
+          requested_by?: string | null
+          review_note?: string | null
+          reviewed_by?: string | null
+          risk_level?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       automation_tasks: {
         Row: {
           created_at: string
