@@ -14,6 +14,8 @@ import {
   Wifi, WifiOff, AlertTriangle, ChevronRight, ChevronDown
 } from 'lucide-react';
 import { AdminPermissions } from './AdminPermissions';
+import { AdminProposals } from './AdminProposals';
+import { Sparkles } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, CartesianGrid
@@ -65,6 +67,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 // Vertical menu items
 const MENU_ITEMS = [
   { id: 'overview', label: 'ওভারভিউ', icon: BarChart3 },
+  { id: 'proposals', label: 'AI প্রপোজাল', icon: Sparkles },
   { id: 'system', label: 'সিস্টেম', icon: Activity },
   { id: 'payments', label: 'পেমেন্ট', icon: CreditCard },
   { id: 'users', label: 'ইউজার', icon: Users },
@@ -584,6 +587,9 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
             </Button>
           </div>
         );
+
+      case 'proposals':
+        return <AdminProposals />;
 
       case 'permissions':
         return <AdminPermissions />;
