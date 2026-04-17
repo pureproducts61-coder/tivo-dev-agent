@@ -60,18 +60,42 @@ const Dashboard = () => {
     }
   }, [setMessages]);
 
-  const handleSend = useCallback(async (message: string) => {
-    if (!message.trim()) return;
+  // Convert File → preview payload for AI
+  const filesToPayload = async (files: File[]) => {
+    return Promise.all(files.map(async (f) => {
+      const isText = f.type.startsWith('text/') || /\.(js|ts|tsx|jsx|json|md|css|html|py|yml|yaml|txt|env|sh)$/i.test(f.name);
+      const isImage = f.type.startsWith('image/');
+      let preview = '';
+      let base64 = '';
+      try {
+        if (isText && f.size < 50_000) {
+          preview = await f.text();
+        } else if (isImage && f.size < 2_000_000) {
+          const buf = await f.arrayBuffer();
+          base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        }
+      } catch {}
+      return { name: f.name, type: f.type, size: f.size, preview, base64, isImage };
+    }));
+  };
+
+  const handleSend = useCallback(async (message: string, attachments?: File[]) => {
+    if (!message.trim() && (!attachments || attachments.length === 0)) return;
 
     let sessionId = activeSessionId;
     if (!sessionId) {
-      sessionId = await createSession(message.slice(0, 50));
+      sessionId = await createSession((message || attachments?.[0]?.name || 'New chat').slice(0, 50));
       if (!sessionId) return;
     }
 
-    const userMsg = { role: 'user' as const, content: message };
+    const attachmentPayload = attachments && attachments.length > 0 ? await filesToPayload(attachments) : [];
+    const displayMessage = attachments && attachments.length > 0
+      ? `${message}\n\n📎 ${attachments.map(f => f.name).join(', ')}`
+      : message;
+
+    const userMsg = { role: 'user' as const, content: displayMessage };
     setMessages(prev => [...prev, userMsg]);
-    await addMessage('user', message);
+    await addMessage('user', displayMessage);
     setIsLoading(true);
 
     try {
