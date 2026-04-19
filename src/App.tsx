@@ -9,6 +9,7 @@ import { BackendApiProvider } from "@/hooks/useBackendApi";
 import { AppModeProvider } from "@/hooks/useAppMode";
 import { TokenProvider } from "@/hooks/useTokens";
 import { AdminProvider } from "@/hooks/useAdmin";
+import { LanguageProvider } from "@/hooks/useLanguage";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
