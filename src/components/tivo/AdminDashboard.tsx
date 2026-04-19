@@ -78,6 +78,7 @@ const MENU_ITEMS = [
   { id: 'overview', label: 'ওভারভিউ', icon: BarChart3 },
   { id: 'proposals', label: 'AI প্রপোজাল', icon: Sparkles },
   { id: 'system', label: 'সিস্টেম', icon: Activity },
+  { id: 'sysTokens', label: 'সিস্টেম টোকেন', icon: KeyRound },
   { id: 'payments', label: 'পেমেন্ট', icon: CreditCard },
   { id: 'users', label: 'ইউজার', icon: Users },
   { id: 'site', label: 'সাইট', icon: Globe },
