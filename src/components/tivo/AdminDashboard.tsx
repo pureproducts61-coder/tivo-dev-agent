@@ -163,6 +163,34 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
     } catch {}
   };
 
+  const fetchSysTokens = async () => {
+    try {
+      const { data } = await supabase.from('system_config').select('key, value').in('key', SYSTEM_TOKEN_FIELDS.map(f => f.key));
+      const status: Record<string, boolean> = {};
+      SYSTEM_TOKEN_FIELDS.forEach(f => {
+        const found = data?.find((d: any) => d.key === f.key);
+        status[f.key] = !!found && (found as any).value.length > 0;
+      });
+      setSysTokenStatus(status);
+    } catch {}
+  };
+
+  const saveSysTokens = async () => {
+    setSavingSysTokens(true);
+    try {
+      for (const [key, value] of Object.entries(sysTokens)) {
+        if (value.trim()) {
+          await supabase.from('system_config').upsert({ key, value: value.trim(), updated_by: user?.id } as any, { onConflict: 'key' });
+        }
+      }
+      toast({ title: '✅ সিস্টেম টোকেন সেভ হয়েছে', description: 'AI এখন এই tokens ব্যবহার করবে।' });
+      setSysTokens({});
+      fetchSysTokens();
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'ত্রুটি', description: e.message });
+    } finally { setSavingSysTokens(false); }
+  };
+
   const checkRealTimeConnections = async () => {
     const newStatus: Record<string, 'checking' | 'active' | 'inactive'> = {};
     newStatus['supabase'] = 'checking';
