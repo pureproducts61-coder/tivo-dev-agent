@@ -34,7 +34,9 @@ const Index = () => {
     } else {
       root.style.removeProperty('--forced-max-w');
     }
-    return () => root.style.removeProperty('--forced-max-w');
+    return () => {
+      root.style.removeProperty('--forced-max-w');
+    };
   }, [viewMode]);
 
   const plans = [
