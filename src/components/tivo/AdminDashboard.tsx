@@ -38,6 +38,15 @@ const API_KEY_FIELDS = [
   { key: 'TAVILY_API_KEY', label: 'Tavily API Key', desc: 'AI ওয়েব সার্চ', color: 'from-emerald-500/20 to-emerald-600/10' },
 ];
 
+const SYSTEM_TOKEN_FIELDS = [
+  { key: 'GITHUB_TOKEN_OVERRIDE', label: 'GitHub Token (Override)', desc: 'AI নিজের repo update করতে ব্যবহার করবে', placeholder: 'ghp_xxxxxxxxxxxx' },
+  { key: 'VERCEL_TOKEN_OVERRIDE', label: 'Vercel Token (Override)', desc: 'AI নিজের deployment করতে ব্যবহার করবে', placeholder: 'vercel_xxxxxxxxxxxx' },
+  { key: 'HF_TOKEN_OVERRIDE', label: 'HuggingFace Token (Override)', desc: 'AI Space update করতে ব্যবহার করবে', placeholder: 'hf_xxxxxxxxxxxx' },
+  { key: 'CUSTOM_SUPABASE_URL', label: 'Custom Supabase URL', desc: 'নিজস্ব ডাটাবেইজ কানেক্ট করতে', placeholder: 'https://xxx.supabase.co' },
+  { key: 'CUSTOM_SUPABASE_ANON_KEY', label: 'Custom Supabase Anon Key', desc: 'Public key (frontend)', placeholder: 'eyJhbGciOiJI...' },
+  { key: 'CUSTOM_SUPABASE_SERVICE_KEY', label: 'Custom Supabase Service Role Key', desc: 'Admin key (server-side, AI ব্যবহার করবে)', placeholder: 'eyJhbGciOiJI...' },
+];
+
 const SITE_SETTINGS_FIELDS = [
   { key: 'bkash_number', label: 'বিকাশ নাম্বার', icon: Phone, placeholder: '01XXXXXXXXX' },
   { key: 'nagad_number', label: 'নগদ নাম্বার', icon: Phone, placeholder: '01XXXXXXXXX' },
