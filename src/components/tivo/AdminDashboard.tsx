@@ -11,7 +11,7 @@ import {
   RefreshCw, Loader2, Activity, Server, GitBranch, Globe, Zap, Save, Eye, EyeOff, Shield,
   TrendingUp, BarChart3, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight,
   Ban, UserCheck, Phone, Mail, Facebook, Youtube, Instagram, ExternalLink,
-  Wifi, WifiOff, AlertTriangle, ChevronRight, ChevronDown
+  Wifi, WifiOff, AlertTriangle, ChevronRight, ChevronDown, KeyRound, Database
 } from 'lucide-react';
 import { AdminPermissions } from './AdminPermissions';
 import { AdminProposals } from './AdminProposals';
