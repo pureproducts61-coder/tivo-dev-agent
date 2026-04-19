@@ -20,28 +20,30 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <AuthProvider>
-        <TokenProvider>
-          <AdminProvider>
-            <BackendConfigProvider>
-              <BackendApiProvider>
-              <AppModeProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </BrowserRouter>
-              </AppModeProvider>
-              </BackendApiProvider>
-            </BackendConfigProvider>
-          </AdminProvider>
-        </TokenProvider>
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <TokenProvider>
+            <AdminProvider>
+              <BackendConfigProvider>
+                <BackendApiProvider>
+                <AppModeProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </BrowserRouter>
+                </AppModeProvider>
+                </BackendApiProvider>
+              </BackendConfigProvider>
+            </AdminProvider>
+          </TokenProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
