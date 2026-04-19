@@ -11,7 +11,7 @@ import {
   RefreshCw, Loader2, Activity, Server, GitBranch, Globe, Zap, Save, Eye, EyeOff, Shield,
   TrendingUp, BarChart3, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight,
   Ban, UserCheck, Phone, Mail, Facebook, Youtube, Instagram, ExternalLink,
-  Wifi, WifiOff, AlertTriangle, ChevronRight, ChevronDown
+  Wifi, WifiOff, AlertTriangle, ChevronRight, ChevronDown, KeyRound, Database
 } from 'lucide-react';
 import { AdminPermissions } from './AdminPermissions';
 import { AdminProposals } from './AdminProposals';
@@ -36,6 +36,15 @@ const API_KEY_FIELDS = [
   { key: 'DEEPSEEK_API_KEY', label: 'DeepSeek API Key', desc: 'DeepSeek মডেল', color: 'from-purple-500/20 to-purple-600/10' },
   { key: 'HF_INFERENCE_TOKEN', label: 'HF Inference', desc: 'HuggingFace inference', color: 'from-yellow-500/20 to-yellow-600/10' },
   { key: 'TAVILY_API_KEY', label: 'Tavily API Key', desc: 'AI ওয়েব সার্চ', color: 'from-emerald-500/20 to-emerald-600/10' },
+];
+
+const SYSTEM_TOKEN_FIELDS = [
+  { key: 'GITHUB_TOKEN_OVERRIDE', label: 'GitHub Token (Override)', desc: 'AI নিজের repo update করতে ব্যবহার করবে', placeholder: 'ghp_xxxxxxxxxxxx' },
+  { key: 'VERCEL_TOKEN_OVERRIDE', label: 'Vercel Token (Override)', desc: 'AI নিজের deployment করতে ব্যবহার করবে', placeholder: 'vercel_xxxxxxxxxxxx' },
+  { key: 'HF_TOKEN_OVERRIDE', label: 'HuggingFace Token (Override)', desc: 'AI Space update করতে ব্যবহার করবে', placeholder: 'hf_xxxxxxxxxxxx' },
+  { key: 'CUSTOM_SUPABASE_URL', label: 'Custom Supabase URL', desc: 'নিজস্ব ডাটাবেইজ কানেক্ট করতে', placeholder: 'https://xxx.supabase.co' },
+  { key: 'CUSTOM_SUPABASE_ANON_KEY', label: 'Custom Supabase Anon Key', desc: 'Public key (frontend)', placeholder: 'eyJhbGciOiJI...' },
+  { key: 'CUSTOM_SUPABASE_SERVICE_KEY', label: 'Custom Supabase Service Role Key', desc: 'Admin key (server-side, AI ব্যবহার করবে)', placeholder: 'eyJhbGciOiJI...' },
 ];
 
 const SITE_SETTINGS_FIELDS = [
@@ -69,6 +78,7 @@ const MENU_ITEMS = [
   { id: 'overview', label: 'ওভারভিউ', icon: BarChart3 },
   { id: 'proposals', label: 'AI প্রপোজাল', icon: Sparkles },
   { id: 'system', label: 'সিস্টেম', icon: Activity },
+  { id: 'sysTokens', label: 'সিস্টেম টোকেন', icon: KeyRound },
   { id: 'payments', label: 'পেমেন্ট', icon: CreditCard },
   { id: 'users', label: 'ইউজার', icon: Users },
   { id: 'site', label: 'সাইট', icon: Globe },
@@ -94,10 +104,14 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
   const [savingSiteSettings, setSavingSiteSettings] = useState(false);
   const [realTimeStatus, setRealTimeStatus] = useState<Record<string, 'checking' | 'active' | 'inactive'>>({});
+  const [sysTokens, setSysTokens] = useState<Record<string, string>>({});
+  const [sysTokenStatus, setSysTokenStatus] = useState<Record<string, boolean>>({});
+  const [showSysTokens, setShowSysTokens] = useState<Record<string, boolean>>({});
+  const [savingSysTokens, setSavingSysTokens] = useState(false);
 
   useEffect(() => {
     if (open) {
-      fetchPayments(); fetchUsers(); fetchSystemStatus(); fetchApiKeyStatus(); fetchSiteSettings(); checkRealTimeConnections();
+      fetchPayments(); fetchUsers(); fetchSystemStatus(); fetchApiKeyStatus(); fetchSiteSettings(); checkRealTimeConnections(); fetchSysTokens();
     }
   }, [open]);
 
@@ -147,6 +161,34 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
       data?.forEach((d: any) => { settings[d.key] = d.value; });
       setSiteSettings(settings);
     } catch {}
+  };
+
+  const fetchSysTokens = async () => {
+    try {
+      const { data } = await supabase.from('system_config').select('key, value').in('key', SYSTEM_TOKEN_FIELDS.map(f => f.key));
+      const status: Record<string, boolean> = {};
+      SYSTEM_TOKEN_FIELDS.forEach(f => {
+        const found = data?.find((d: any) => d.key === f.key);
+        status[f.key] = !!found && (found as any).value.length > 0;
+      });
+      setSysTokenStatus(status);
+    } catch {}
+  };
+
+  const saveSysTokens = async () => {
+    setSavingSysTokens(true);
+    try {
+      for (const [key, value] of Object.entries(sysTokens)) {
+        if (value.trim()) {
+          await supabase.from('system_config').upsert({ key, value: value.trim(), updated_by: user?.id } as any, { onConflict: 'key' });
+        }
+      }
+      toast({ title: '✅ সিস্টেম টোকেন সেভ হয়েছে', description: 'AI এখন এই tokens ব্যবহার করবে।' });
+      setSysTokens({});
+      fetchSysTokens();
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'ত্রুটি', description: e.message });
+    } finally { setSavingSysTokens(false); }
   };
 
   const checkRealTimeConnections = async () => {
@@ -590,6 +632,70 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
 
       case 'proposals':
         return <AdminProposals />;
+
+      case 'sysTokens':
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-primary" /> সিস্টেম টোকেন
+              </h3>
+              <Button size="sm" variant="ghost" onClick={fetchSysTokens} className="gap-1 text-xs rounded-xl">
+                <RefreshCw className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+            <div className="bg-accent/5 border border-accent/20 rounded-xl p-3 space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-accent" />
+                <p className="text-[11px] font-semibold text-foreground">গুরুত্বপূর্ণ</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                AI স্বয়ংক্রিয় ভাবে নিজেকে আপডেট করার সময় এই টোকেনগুলো ব্যবহার করবে। Custom Supabase সেট করলে AI সেই DB তে কাজ করবে (Lovable Cloud এর পরিবর্তে)।
+              </p>
+            </div>
+            <div className="space-y-2.5">
+              {SYSTEM_TOKEN_FIELDS.map(({ key, label, desc, placeholder }) => (
+                <div key={key} className="rounded-2xl p-3 space-y-2 bg-gradient-to-r from-primary/5 to-accent/5 border border-border/30">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        {key.includes('SUPABASE') ? <Database className="w-3 h-3" /> : <KeyRound className="w-3 h-3" />}
+                        {label}
+                      </Label>
+                      <p className="text-[10px] text-muted-foreground">{desc}</p>
+                    </div>
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${sysTokenStatus[key] ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                      {sysTokenStatus[key] ? '● সেট' : '○ নেই'}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      type={showSysTokens[key] ? 'text' : 'password'}
+                      placeholder={placeholder}
+                      value={sysTokens[key] || ''}
+                      onChange={(e) => setSysTokens(p => ({ ...p, [key]: e.target.value }))}
+                      className="bg-background/50 border-border/50 text-xs font-mono pr-10 rounded-xl h-8"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSysTokens(p => ({ ...p, [key]: !p[key] }))}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showSysTokens[key] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Button
+              onClick={saveSysTokens}
+              disabled={savingSysTokens || Object.values(sysTokens).every(v => !v?.trim())}
+              className="w-full gap-2 rounded-xl h-9"
+            >
+              {savingSysTokens ? <><Loader2 className="w-4 h-4 animate-spin" /> সেভ হচ্ছে...</> : <><Save className="w-4 h-4" /> সেভ করুন</>}
+            </Button>
+          </div>
+        );
 
       case 'permissions':
         return <AdminPermissions />;

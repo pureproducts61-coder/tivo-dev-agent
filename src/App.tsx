@@ -9,6 +9,7 @@ import { BackendApiProvider } from "@/hooks/useBackendApi";
 import { AppModeProvider } from "@/hooks/useAppMode";
 import { TokenProvider } from "@/hooks/useTokens";
 import { AdminProvider } from "@/hooks/useAdmin";
+import { LanguageProvider } from "@/hooks/useLanguage";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -19,28 +20,30 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <AuthProvider>
-        <TokenProvider>
-          <AdminProvider>
-            <BackendConfigProvider>
-              <BackendApiProvider>
-              <AppModeProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </BrowserRouter>
-              </AppModeProvider>
-              </BackendApiProvider>
-            </BackendConfigProvider>
-          </AdminProvider>
-        </TokenProvider>
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <TokenProvider>
+            <AdminProvider>
+              <BackendConfigProvider>
+                <BackendApiProvider>
+                <AppModeProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </BrowserRouter>
+                </AppModeProvider>
+                </BackendApiProvider>
+              </BackendConfigProvider>
+            </AdminProvider>
+          </TokenProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
