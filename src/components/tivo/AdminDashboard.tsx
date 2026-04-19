@@ -633,6 +633,70 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
       case 'proposals':
         return <AdminProposals />;
 
+      case 'sysTokens':
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-primary" /> সিস্টেম টোকেন
+              </h3>
+              <Button size="sm" variant="ghost" onClick={fetchSysTokens} className="gap-1 text-xs rounded-xl">
+                <RefreshCw className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+            <div className="bg-accent/5 border border-accent/20 rounded-xl p-3 space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-accent" />
+                <p className="text-[11px] font-semibold text-foreground">গুরুত্বপূর্ণ</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                AI স্বয়ংক্রিয় ভাবে নিজেকে আপডেট করার সময় এই টোকেনগুলো ব্যবহার করবে। Custom Supabase সেট করলে AI সেই DB তে কাজ করবে (Lovable Cloud এর পরিবর্তে)।
+              </p>
+            </div>
+            <div className="space-y-2.5">
+              {SYSTEM_TOKEN_FIELDS.map(({ key, label, desc, placeholder }) => (
+                <div key={key} className="rounded-2xl p-3 space-y-2 bg-gradient-to-r from-primary/5 to-accent/5 border border-border/30">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        {key.includes('SUPABASE') ? <Database className="w-3 h-3" /> : <KeyRound className="w-3 h-3" />}
+                        {label}
+                      </Label>
+                      <p className="text-[10px] text-muted-foreground">{desc}</p>
+                    </div>
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${sysTokenStatus[key] ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                      {sysTokenStatus[key] ? '● সেট' : '○ নেই'}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      type={showSysTokens[key] ? 'text' : 'password'}
+                      placeholder={placeholder}
+                      value={sysTokens[key] || ''}
+                      onChange={(e) => setSysTokens(p => ({ ...p, [key]: e.target.value }))}
+                      className="bg-background/50 border-border/50 text-xs font-mono pr-10 rounded-xl h-8"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSysTokens(p => ({ ...p, [key]: !p[key] }))}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showSysTokens[key] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Button
+              onClick={saveSysTokens}
+              disabled={savingSysTokens || Object.values(sysTokens).every(v => !v?.trim())}
+              className="w-full gap-2 rounded-xl h-9"
+            >
+              {savingSysTokens ? <><Loader2 className="w-4 h-4 animate-spin" /> সেভ হচ্ছে...</> : <><Save className="w-4 h-4" /> সেভ করুন</>}
+            </Button>
+          </div>
+        );
+
       case 'permissions':
         return <AdminPermissions />;
 
