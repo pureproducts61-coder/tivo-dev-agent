@@ -104,10 +104,14 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
   const [savingSiteSettings, setSavingSiteSettings] = useState(false);
   const [realTimeStatus, setRealTimeStatus] = useState<Record<string, 'checking' | 'active' | 'inactive'>>({});
+  const [sysTokens, setSysTokens] = useState<Record<string, string>>({});
+  const [sysTokenStatus, setSysTokenStatus] = useState<Record<string, boolean>>({});
+  const [showSysTokens, setShowSysTokens] = useState<Record<string, boolean>>({});
+  const [savingSysTokens, setSavingSysTokens] = useState(false);
 
   useEffect(() => {
     if (open) {
-      fetchPayments(); fetchUsers(); fetchSystemStatus(); fetchApiKeyStatus(); fetchSiteSettings(); checkRealTimeConnections();
+      fetchPayments(); fetchUsers(); fetchSystemStatus(); fetchApiKeyStatus(); fetchSiteSettings(); checkRealTimeConnections(); fetchSysTokens();
     }
   }, [open]);
 
