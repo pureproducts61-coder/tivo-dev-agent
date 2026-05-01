@@ -25,6 +25,10 @@ const Index = () => {
   const { lang, setLang, t } = useLanguage();
   const [paymentPlan, setPaymentPlan] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'mobile' | 'desktop'>('desktop');
+  const landingContent = (() => {
+    try { return settings.landing_content ? JSON.parse(settings.landing_content) : {}; }
+    catch { return {}; }
+  })();
 
   // Apply view mode by clamping page width
   useEffect(() => {
@@ -94,6 +98,7 @@ const Index = () => {
     { icon: Shield, title: t('সিকিউর টোকেন', 'Secure Tokens'), desc: t('আপনার API কীগুলো শুধু আপনার ব্রাউজারে — আমরা দেখি না।', 'Your API keys stay in your browser — we never see them.') },
     { icon: Globe, title: t('ওয়ান-ক্লিক পাবলিশ', 'One-click Publish'), desc: t('প্রজেক্ট তৈরি করুন, প্রিভিউ দেখুন, লিঙ্ক শেয়ার করুন।', 'Build, preview, share — all in one click.') },
   ];
+  const adminFeatureList: string[] = Array.isArray(landingContent.features) ? landingContent.features : [];
 
   const handlePlanSelect = (planId: string) => {
     if (!user) { navigate('/auth'); return; }
@@ -172,12 +177,12 @@ const Index = () => {
               </div>
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight">
                 <span className="gradient-text">TIVO DEV AGENT</span><br />
-                <span className="text-foreground">{t('আপনার AI ডেভেলপমেন্ট পার্টনার', 'Your AI Development Partner')}</span>
+                <span className="text-foreground">{t(landingContent.headline_bn || 'আপনার AI ডেভেলপমেন্ট পার্টনার', landingContent.headline_en || 'Your AI Development Partner')}</span>
               </h1>
               <p className="text-muted-foreground text-lg mt-4 max-w-2xl mx-auto">
                 {t(
-                  'কোড লিখুন, GitHub-এ পুশ করুন, Vercel-এ ডিপ্লয় করুন — সবকিছু একটি চ্যাট উইন্ডো থেকে।',
-                  'Write code, push to GitHub, deploy on Vercel — all from one chat window.'
+                  landingContent.subtitle_bn || 'কোড লিখুন, GitHub-এ পুশ করুন, Vercel-এ ডিপ্লয় করুন — সবকিছু একটি চ্যাট উইন্ডো থেকে।',
+                  landingContent.subtitle_en || 'Write code, push to GitHub, deploy on Vercel — all from one chat window.'
                 )}
               </p>
             </motion.div>
@@ -196,6 +201,11 @@ const Index = () => {
         <section className="py-16 px-4">
           <div className="max-w-5xl mx-auto">
             <h2 className="text-2xl sm:text-3xl font-bold text-center mb-10 text-foreground">{t('কেন TIVO DEV?', 'Why TIVO DEV?')}</h2>
+            {landingContent.feature_intro_bn && (
+              <p className="text-center text-muted-foreground max-w-3xl mx-auto -mt-6 mb-8">
+                {t(landingContent.feature_intro_bn, landingContent.feature_intro_en || landingContent.feature_intro_bn)}
+              </p>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {features.map((f, i) => (
                 <motion.div key={f.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} viewport={{ once: true }}
@@ -208,6 +218,15 @@ const Index = () => {
                 </motion.div>
               ))}
             </div>
+            {adminFeatureList.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-8">
+                {adminFeatureList.map((item) => (
+                  <div key={item} className="glass-card rounded-xl px-4 py-3 flex items-center gap-2 text-sm text-muted-foreground">
+                    <Check className="w-4 h-4 text-primary shrink-0" /> {item}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
@@ -216,6 +235,11 @@ const Index = () => {
           <div className="max-w-5xl mx-auto">
             <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3 text-foreground">{t('প্ল্যান বেছে নিন', 'Choose a Plan')}</h2>
             <p className="text-center text-muted-foreground mb-6">{t('বিকাশ, নগদ বা রকেট দিয়ে পেমেন্ট করুন', 'Pay with bKash, Nagad or Rocket')}</p>
+            {(landingContent.plan_note_bn || landingContent.plan_note_en) && (
+              <p className="text-center text-muted-foreground text-sm max-w-2xl mx-auto mb-6">
+                {t(landingContent.plan_note_bn || landingContent.plan_note_en, landingContent.plan_note_en || landingContent.plan_note_bn)}
+              </p>
+            )}
 
             {/* Payment Numbers from Admin */}
             {paymentNumbers.length > 0 && (
