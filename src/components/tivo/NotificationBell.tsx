@@ -181,10 +181,59 @@ export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps
           return [...kept, ...payNotifs];
         });
       }
+
+      const { data: pendingProposals, count } = await supabase
+        .from('ai_proposals')
+        .select('id, title, description, action_type, risk_level, created_at', { count: 'exact' })
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      setPendingProposalCount(count || 0);
+      if (pendingProposals?.length) {
+        const proposalNotifs: Notification[] = pendingProposals.map((p: any) => ({
+          id: `proposal-${p.id}`,
+          type: 'proposal' as const,
+          title: p.title || `AI প্রস্তাব: ${p.action_type}`,
+          message: `${p.risk_level || 'medium'} risk — ${p.description || 'Admin approval প্রয়োজন'}`,
+          timestamp: p.created_at,
+          read: false,
+          action: 'open-proposals' as const,
+        }));
+        setNotifications(prev => {
+          const kept = prev.filter(n => !n.id.startsWith('proposal-'));
+          return [...proposalNotifs, ...kept];
+        });
+      }
     } catch {} finally {
       setLoading(false);
     }
   }, [isAdmin, isConnected, getLogs]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetchAdminNotifications();
+    const channel = supabase
+      .channel('notification_ai_proposals')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ai_proposals' }, (payload) => {
+        const p: any = payload.new;
+        if (p?.status === 'pending') {
+          setPendingProposalCount(c => c + 1);
+          setNotifications(prev => [{
+            id: `proposal-${p.id}`,
+            type: 'proposal',
+            title: p.title || `AI প্রস্তাব: ${p.action_type}`,
+            message: p.description || 'Admin approval প্রয়োজন',
+            timestamp: p.created_at || new Date().toISOString(),
+            read: false,
+            action: 'open-proposals',
+          }, ...prev.filter(n => n.id !== `proposal-${p.id}`)]);
+          notifyBrowser('নতুন AI প্রপোজাল', p.title || p.action_type || 'Approval প্রয়োজন');
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [isAdmin, fetchAdminNotifications, notifyBrowser]);
 
   useEffect(() => {
     if (open) {
@@ -202,7 +251,7 @@ export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps
     return () => clearInterval(iv);
   }, [isAdmin, fetchAdminNotifications, fetchUserNotifications]);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = isAdmin && pendingProposalCount > 0 ? pendingProposalCount : notifications.filter(n => !n.read).length;
   const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   const clearAll = () => setNotifications(prev => prev.filter(n => n.id === 'conn-status'));
 
