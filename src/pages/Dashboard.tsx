@@ -19,8 +19,10 @@ import { BuildView } from '@/components/tivo/views/BuildView';
 import { AutomationView } from '@/components/tivo/views/AutomationView';
 import { useChatSessions } from '@/hooks/useChatSessions';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-const SENSITIVE_ACTIONS = ['push to github', 'deploy to vercel', 'publish', 'delete', 'drop table', 'update now', 'rollback'];
+const SENSITIVE_ACTIONS = ['push to github', 'deploy to vercel', 'publish', 'delete', 'drop table', 'create table', 'schema change', 'migration', 'cost-incurring', 'update now', 'rollback'];
+const DYNAMIC_VAR_PREFIX = 'tivo_dynamic_vars_';
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -34,6 +36,7 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('automated');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [adminInitialTab, setAdminInitialTab] = useState('overview');
   const [isLoading, setIsLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
@@ -53,6 +56,32 @@ const Dashboard = () => {
     }
     return null;
   };
+
+  const loadDynamicVariables = useCallback(() => {
+    if (!user) return [];
+    try {
+      const raw = localStorage.getItem(`${DYNAMIC_VAR_PREFIX}${user.id}`);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed)
+        ? parsed.filter((v: any) => v?.key).map((v: any) => ({ key: String(v.key), value: String(v.value ?? '') }))
+        : [];
+    } catch {
+      return [];
+    }
+  }, [user]);
+
+  const createAiProposal = useCallback(async (actionType: string, sourceText: string) => {
+    if (!user) return;
+    await supabase.from('ai_proposals').insert({
+      action_type: actionType,
+      risk_level: actionType.includes('drop') || actionType.includes('delete') ? 'high' : 'medium',
+      title: `AI প্রস্তাব: ${actionType}`,
+      description: sourceText.slice(0, 1200) || `${actionType} অনুমোদন প্রয়োজন।`,
+      payload: { source: 'chat', mode, created_from: 'dashboard' },
+      requested_by: user.id,
+      status: 'pending',
+    } as any);
+  }, [mode, user]);
 
   const handleFeedback = useCallback(async (msgIndex: number, type: 'like' | 'dislike') => {
     if (type === 'dislike') {
@@ -106,7 +135,7 @@ const Dashboard = () => {
         try {
           const stream = await chatStream(
             [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
-            { isAdmin, systemContext: isAdmin ? 'Admin with full access' : 'Standard user' }
+            { isAdmin, systemContext: isAdmin ? 'Admin with full access' : 'Standard user', dynamicVariables: loadDynamicVariables() }
           );
           if (stream) {
             const reader = stream.getReader();
@@ -150,18 +179,20 @@ const Dashboard = () => {
           }
           if (assistantSoFar) await addMessage('assistant', assistantSoFar);
           const sensitiveAction = checkForSensitiveAction(assistantSoFar);
-          if (sensitiveAction) setPendingAction(sensitiveAction);
+          if (sensitiveAction) { setPendingAction(sensitiveAction); await createAiProposal(sensitiveAction, assistantSoFar); }
         } catch (backendErr) {
           console.warn('HF backend failed, falling back to edge function:', backendErr);
           // Fall through to edge function below
-          await handleEdgeFunctionChat([...messages, userMsg]);
+          await handleEdgeFunctionChat([...messages, userMsg], attachmentPayload);
         }
       } else if (mode === 'plan') {
         const allMessages = [...messages, userMsg];
+        const dynamicVariables = loadDynamicVariables();
         const systemContext = [
           tokens.GITHUB_TOKEN ? 'User has GitHub token configured.' : '',
           tokens.VERCEL_TOKEN ? 'User has Vercel token configured.' : '',
           isAdmin ? 'User is admin with full access.' : '',
+          dynamicVariables.length ? `\n[User Dynamic Variables]\n${dynamicVariables.map(v => `${v.key}=${v.value}`).join('\n')}` : '',
           configStatus ? `\n[System Config Status]\n${configStatus.summary}` : '',
         ].filter(Boolean).join(' ');
 
@@ -179,6 +210,7 @@ const Dashboard = () => {
               systemContext,
               isAdmin,
               userPlan: 'free',
+              dynamicVariables,
               attachments: attachmentPayload,
             }),
           }
@@ -237,20 +269,22 @@ const Dashboard = () => {
 
         if (assistantSoFar) await addMessage('assistant', assistantSoFar);
         const sensitiveAction = checkForSensitiveAction(assistantSoFar);
-        if (sensitiveAction) setPendingAction(sensitiveAction);
+        if (sensitiveAction) { setPendingAction(sensitiveAction); await createAiProposal(sensitiveAction, assistantSoFar); }
       }
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'ত্রুটি', description: e.message });
     } finally {
       setIsLoading(false);
     }
-  }, [messages, mode, tokens, activeSessionId, createSession, addMessage, setMessages, isAdmin, isConnected, chatStream]);
+  }, [messages, mode, tokens, activeSessionId, createSession, addMessage, setMessages, isAdmin, isConnected, chatStream, loadDynamicVariables, createAiProposal, configStatus]);
 
-  const handleEdgeFunctionChat = async (allMessages: any[]) => {
+  const handleEdgeFunctionChat = async (allMessages: any[], attachmentsPayload: any[] = []) => {
+    const dynamicVariables = loadDynamicVariables();
     const systemContext = [
       tokens.GITHUB_TOKEN ? 'User has GitHub token configured.' : '',
       tokens.VERCEL_TOKEN ? 'User has Vercel token configured.' : '',
       isAdmin ? 'User is admin with full access.' : '',
+      dynamicVariables.length ? `\n[User Dynamic Variables]\n${dynamicVariables.map(v => `${v.key}=${v.value}`).join('\n')}` : '',
       configStatus ? `\n[System Config Status]\n${configStatus.summary}` : '',
     ].filter(Boolean).join(' ');
 
@@ -268,6 +302,8 @@ const Dashboard = () => {
           systemContext,
           isAdmin,
           userPlan: 'free',
+          dynamicVariables,
+          attachments: attachmentsPayload,
         }),
       }
     );
@@ -314,7 +350,7 @@ const Dashboard = () => {
     }
     if (assistantSoFar) await addMessage('assistant', assistantSoFar);
     const sensitiveAction = checkForSensitiveAction(assistantSoFar);
-    if (sensitiveAction) setPendingAction(sensitiveAction);
+    if (sensitiveAction) { setPendingAction(sensitiveAction); await createAiProposal(sensitiveAction, assistantSoFar); }
   };
 
   const handleConfirmAction = () => {
