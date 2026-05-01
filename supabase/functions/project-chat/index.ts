@@ -28,6 +28,7 @@ TABLES (with key columns + RLS):
 9. chat_messages (id, session_id, user_id, role, content) — User own only
 10. automation_tasks (id, user_id, title, description, status, steps[jsonb], current_step, schedule, last_run_at) — User own only
 11. ai_proposals (id, action_type, risk_level[low|medium|high|critical], title, description, payload, status[pending|approved|rejected|executed], requested_by, reviewed_by, review_note, executed_at, execution_result, estimated_cost) — Auth users INSERT, Admin manages all. ⚠️ ALWAYS create proposal here BEFORE deploy/schema-change/cost-incurring action
+12. ai_memories (id, scope[system|user|project|research], owner_user_id, title, content, tags[], source, confidence, metadata, last_used_at) — Admin manages all; users can manage own user/project memories only
 
 FUNCTIONS:
 - has_role(_user_id uuid, _role app_role) → bool — SECURITY DEFINER, use in RLS to avoid recursion
@@ -43,6 +44,7 @@ RULES FOR AI:
 ✅ For schema changes → propose via ai_proposals first, wait admin approval
 ✅ For inserts on user-data tables, ALWAYS set user_id = auth.uid()
 ✅ For admin-only tables, check has_role(auth.uid(), 'admin') first
+✅ Store durable AI learning in ai_memories; if DB offline, use GitHub private JSON memory fallback
 ❌ NEVER touch auth.* / storage.* / realtime.* / vault.* schemas
 ❌ NEVER store secrets/tokens in profiles or any non-system_config table
 `;
