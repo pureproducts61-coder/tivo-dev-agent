@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,7 +12,7 @@ import {
   RefreshCw, Loader2, Activity, Server, GitBranch, Globe, Zap, Save, Eye, EyeOff, Shield,
   TrendingUp, BarChart3, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight,
   Ban, UserCheck, Phone, Mail, Facebook, Youtube, Instagram, ExternalLink,
-  Wifi, WifiOff, AlertTriangle, ChevronRight, ChevronDown, KeyRound, Database
+  Wifi, WifiOff, AlertTriangle, ChevronRight, ChevronDown, KeyRound, Database, FileText
 } from 'lucide-react';
 import { AdminPermissions } from './AdminPermissions';
 import { AdminProposals } from './AdminProposals';
@@ -21,7 +22,7 @@ import {
   PieChart, Pie, Cell, AreaChart, Area, CartesianGrid
 } from 'recharts';
 
-interface AdminDashboardProps { open: boolean; onClose: () => void; }
+interface AdminDashboardProps { open: boolean; onClose: () => void; initialTab?: string; }
 
 interface SystemStatus {
   tokens: Record<string, boolean>;
@@ -45,6 +46,7 @@ const SYSTEM_TOKEN_FIELDS = [
   { key: 'CUSTOM_SUPABASE_URL', label: 'Custom Supabase URL', desc: 'নিজস্ব ডাটাবেইজ কানেক্ট করতে', placeholder: 'https://xxx.supabase.co' },
   { key: 'CUSTOM_SUPABASE_ANON_KEY', label: 'Custom Supabase Anon Key', desc: 'Public key (frontend)', placeholder: 'eyJhbGciOiJI...' },
   { key: 'CUSTOM_SUPABASE_SERVICE_KEY', label: 'Custom Supabase Service Role Key', desc: 'Admin key (server-side, AI ব্যবহার করবে)', placeholder: 'eyJhbGciOiJI...' },
+  { key: 'CUSTOM_SUPABASE_DB_URL', label: 'Custom Database URL', desc: 'Schema bootstrap/migration-এর জন্য Postgres connection string', placeholder: 'postgresql://postgres:...' },
 ];
 
 const SITE_SETTINGS_FIELDS = [
@@ -58,6 +60,25 @@ const SITE_SETTINGS_FIELDS = [
   { key: 'instagram_url', label: 'Instagram', icon: Instagram, placeholder: 'https://instagram.com/...' },
   { key: 'tiktok_url', label: 'TikTok', icon: ExternalLink, placeholder: 'https://tiktok.com/...' },
 ];
+
+const DEFAULT_LANDING_CONTENT = JSON.stringify({
+  headline_bn: 'আপনার AI ডেভেলপমেন্ট পার্টনার',
+  headline_en: 'Your AI Development Partner',
+  subtitle_bn: 'কোড, GitHub, Vercel, database, automation এবং business strategy — সবকিছু একটি professional AI agent থেকে।',
+  subtitle_en: 'Code, GitHub, Vercel, database, automation and business strategy — all from one professional AI agent.',
+  feature_intro_bn: 'TIVO DEV AGENT শুধু চ্যাট নয় — এটি project planning, build workflow, deployment approval, API health এবং admin-controlled automation বুঝে কাজ করে।',
+  feature_intro_en: 'TIVO DEV AGENT is more than chat — it understands project planning, build workflow, deployment approval, API health and admin-controlled automation.',
+  features: [
+    'Project planning ও code generation',
+    'GitHub/Vercel/HF token-aware workflow',
+    'Admin approval proposals ও notifications',
+    'Custom database bootstrap guidance',
+    'Permanent AI memory fallback',
+    'Mobile/Desktop responsive workspace'
+  ],
+  plan_note_bn: 'প্ল্যান অনুযায়ী credit, automation এবং support সীমা admin panel থেকে নিয়ন্ত্রণ করা যায়।',
+  plan_note_en: 'Credits, automation and support limits can be controlled from the admin panel by plan.'
+}, null, 2);
 
 const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#8b5cf6', '#f59e0b', '#10b981'];
 
@@ -82,11 +103,12 @@ const MENU_ITEMS = [
   { id: 'payments', label: 'পেমেন্ট', icon: CreditCard },
   { id: 'users', label: 'ইউজার', icon: Users },
   { id: 'site', label: 'সাইট', icon: Globe },
+  { id: 'landing', label: 'ল্যান্ডিং কনটেন্ট', icon: FileText },
   { id: 'permissions', label: 'পারমিশন', icon: Shield },
   { id: 'api', label: 'API', icon: Cpu },
 ];
 
-export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
+export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: AdminDashboardProps) => {
   const { user, session } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [payments, setPayments] = useState<any[]>([]);
@@ -103,6 +125,8 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
   const [loadingKeys, setLoadingKeys] = useState(false);
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
   const [savingSiteSettings, setSavingSiteSettings] = useState(false);
+  const [landingContent, setLandingContent] = useState(DEFAULT_LANDING_CONTENT);
+  const [savingLandingContent, setSavingLandingContent] = useState(false);
   const [realTimeStatus, setRealTimeStatus] = useState<Record<string, 'checking' | 'active' | 'inactive'>>({});
   const [sysTokens, setSysTokens] = useState<Record<string, string>>({});
   const [sysTokenStatus, setSysTokenStatus] = useState<Record<string, boolean>>({});
@@ -111,9 +135,10 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
 
   useEffect(() => {
     if (open) {
+      setActiveTab(initialTab);
       fetchPayments(); fetchUsers(); fetchSystemStatus(); fetchApiKeyStatus(); fetchSiteSettings(); checkRealTimeConnections(); fetchSysTokens();
     }
-  }, [open]);
+  }, [open, initialTab]);
 
   const fetchPayments = async () => {
     setLoadingPayments(true);
@@ -160,6 +185,7 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
       const settings: Record<string, string> = {};
       data?.forEach((d: any) => { settings[d.key] = d.value; });
       setSiteSettings(settings);
+      setLandingContent(settings.landing_content || DEFAULT_LANDING_CONTENT);
     } catch {}
   };
 
@@ -182,6 +208,18 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
         if (value.trim()) {
           await supabase.from('system_config').upsert({ key, value: value.trim(), updated_by: user?.id } as any, { onConflict: 'key' });
         }
+      }
+      const customKeys = ['CUSTOM_SUPABASE_URL', 'CUSTOM_SUPABASE_SERVICE_KEY', 'CUSTOM_SUPABASE_DB_URL'];
+      if (customKeys.some(key => sysTokens[key]?.trim())) {
+        await supabase.from('ai_proposals').insert({
+          action_type: 'custom_database_bootstrap',
+          risk_level: 'high',
+          title: 'Custom database bootstrap ও data sync',
+          description: 'Custom Supabase config আপডেট হয়েছে। AI বর্তমান schema/data custom database-এ setup ও migrate করার আগে admin approval চাইছে।',
+          payload: { keys_updated: customKeys.filter(key => sysTokens[key]?.trim()), requires_approval: true },
+          requested_by: user?.id,
+          status: 'pending',
+        } as any);
       }
       toast({ title: '✅ সিস্টেম টোকেন সেভ হয়েছে', description: 'AI এখন এই tokens ব্যবহার করবে।' });
       setSysTokens({});
@@ -278,6 +316,18 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'ত্রুটি', description: e.message });
     } finally { setSavingSiteSettings(false); }
+  };
+
+  const saveLandingContentHandler = async () => {
+    setSavingLandingContent(true);
+    try {
+      JSON.parse(landingContent);
+      await supabase.from('system_config').upsert({ key: 'landing_content', value: landingContent.trim(), updated_by: user?.id } as any, { onConflict: 'key' });
+      toast({ title: '✅ ল্যান্ডিং কনটেন্ট সেভ হয়েছে' });
+      fetchSiteSettings();
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'JSON ভুল আছে', description: e.message });
+    } finally { setSavingLandingContent(false); }
   };
 
   const getUserProfile = (userId: string) => profiles.find(p => p.user_id === userId);
@@ -626,6 +676,24 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
             </div>
             <Button onClick={saveSiteSettingsHandler} disabled={savingSiteSettings} className="w-full gap-2 rounded-xl h-9">
               {savingSiteSettings ? <><Loader2 className="w-4 h-4 animate-spin" /> সেভ হচ্ছে...</> : <><Save className="w-4 h-4" /> সেভ করুন</>}
+            </Button>
+          </div>
+        );
+
+      case 'landing':
+        return (
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><FileText className="w-4 h-4 text-primary" /> ল্যান্ডিং কনটেন্ট</h3>
+            <p className="text-[11px] text-muted-foreground bg-muted/20 rounded-xl px-3 py-2">
+              JSON হিসেবে hero text, feature list ও plan note আপডেট করুন। ভুল JSON হলে সেভ হবে না।
+            </p>
+            <Textarea
+              value={landingContent}
+              onChange={(e) => setLandingContent(e.target.value)}
+              className="min-h-[320px] bg-background/50 border-border/50 text-xs font-mono rounded-xl"
+            />
+            <Button onClick={saveLandingContentHandler} disabled={savingLandingContent} className="w-full gap-2 rounded-xl h-9">
+              {savingLandingContent ? <><Loader2 className="w-4 h-4 animate-spin" /> সেভ হচ্ছে...</> : <><Save className="w-4 h-4" /> ল্যান্ডিং কনটেন্ট সেভ করুন</>}
             </Button>
           </div>
         );

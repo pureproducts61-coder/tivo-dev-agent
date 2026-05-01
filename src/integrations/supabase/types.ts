@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_memories: {
+        Row: {
+          confidence: number
+          content: string
+          created_at: string
+          id: string
+          last_used_at: string | null
+          metadata: Json
+          owner_user_id: string | null
+          scope: string
+          source: string
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number
+          content: string
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          metadata?: Json
+          owner_user_id?: string | null
+          scope?: string
+          source?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number
+          content?: string
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          metadata?: Json
+          owner_user_id?: string | null
+          scope?: string
+          source?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_proposals: {
         Row: {
           action_type: string

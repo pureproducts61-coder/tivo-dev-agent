@@ -11,11 +11,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface Notification {
   id: string;
-  type: 'build' | 'deploy' | 'connection' | 'activity' | 'info' | 'user' | 'api' | 'project' | 'system';
+  type: 'build' | 'deploy' | 'connection' | 'activity' | 'info' | 'user' | 'api' | 'project' | 'system' | 'proposal';
   title: string;
   message: string;
   timestamp: string;
   read: boolean;
+  action?: 'open-proposals';
+}
+
+interface NotificationBellProps {
+  onOpenAdminProposals?: () => void;
 }
 
 const typeIcons: Record<string, any> = {
@@ -28,6 +33,7 @@ const typeIcons: Record<string, any> = {
   api: Key,
   project: CheckCircle2,
   system: Database,
+  proposal: AlertTriangle,
 };
 
 const typeColors: Record<string, string> = {
@@ -40,15 +46,27 @@ const typeColors: Record<string, string> = {
   api: 'text-orange-400',
   project: 'text-primary',
   system: 'text-rose-400',
+  proposal: 'text-primary',
 };
 
-export const NotificationBell = () => {
+export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps) => {
   const { isConnected, getLogs, status } = useBackendApi();
   const { isAdmin } = useAdmin();
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [pendingProposalCount, setPendingProposalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+
+  const notifyBrowser = useCallback((title: string, body: string) => {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') new Notification(title, { body });
+    else if (Notification.permission === 'default') {
+      Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') new Notification(title, { body });
+      });
+    }
+  }, []);
 
   // Connection status notification
   useEffect(() => {
@@ -163,10 +181,59 @@ export const NotificationBell = () => {
           return [...kept, ...payNotifs];
         });
       }
+
+      const { data: pendingProposals, count } = await supabase
+        .from('ai_proposals')
+        .select('id, title, description, action_type, risk_level, created_at', { count: 'exact' })
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      setPendingProposalCount(count || 0);
+      if (pendingProposals?.length) {
+        const proposalNotifs: Notification[] = pendingProposals.map((p: any) => ({
+          id: `proposal-${p.id}`,
+          type: 'proposal' as const,
+          title: p.title || `AI প্রস্তাব: ${p.action_type}`,
+          message: `${p.risk_level || 'medium'} risk — ${p.description || 'Admin approval প্রয়োজন'}`,
+          timestamp: p.created_at,
+          read: false,
+          action: 'open-proposals' as const,
+        }));
+        setNotifications(prev => {
+          const kept = prev.filter(n => !n.id.startsWith('proposal-'));
+          return [...proposalNotifs, ...kept];
+        });
+      }
     } catch {} finally {
       setLoading(false);
     }
   }, [isAdmin, isConnected, getLogs]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetchAdminNotifications();
+    const channel = supabase
+      .channel('notification_ai_proposals')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ai_proposals' }, (payload) => {
+        const p: any = payload.new;
+        if (p?.status === 'pending') {
+          setPendingProposalCount(c => c + 1);
+          setNotifications(prev => [{
+            id: `proposal-${p.id}`,
+            type: 'proposal',
+            title: p.title || `AI প্রস্তাব: ${p.action_type}`,
+            message: p.description || 'Admin approval প্রয়োজন',
+            timestamp: p.created_at || new Date().toISOString(),
+            read: false,
+            action: 'open-proposals',
+          }, ...prev.filter(n => n.id !== `proposal-${p.id}`)]);
+          notifyBrowser('নতুন AI প্রপোজাল', p.title || p.action_type || 'Approval প্রয়োজন');
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [isAdmin, fetchAdminNotifications, notifyBrowser]);
 
   useEffect(() => {
     if (open) {
@@ -184,7 +251,7 @@ export const NotificationBell = () => {
     return () => clearInterval(iv);
   }, [isAdmin, fetchAdminNotifications, fetchUserNotifications]);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = isAdmin && pendingProposalCount > 0 ? pendingProposalCount : notifications.filter(n => !n.read).length;
   const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   const clearAll = () => setNotifications(prev => prev.filter(n => n.id === 'conn-status'));
 
@@ -233,7 +300,13 @@ export const NotificationBell = () => {
                     key={n.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className={`px-4 py-3 flex gap-3 hover:bg-muted/30 transition-colors ${n.read ? 'opacity-50' : ''}`}
+                    className={`px-4 py-3 flex gap-3 hover:bg-muted/30 transition-colors ${n.action ? 'cursor-pointer' : ''} ${n.read ? 'opacity-50' : ''}`}
+                    onClick={() => {
+                      if (n.action === 'open-proposals') {
+                        setOpen(false);
+                        onOpenAdminProposals?.();
+                      }
+                    }}
                   >
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
                       n.read ? 'bg-muted/30' : 'bg-primary/10'

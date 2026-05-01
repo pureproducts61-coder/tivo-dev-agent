@@ -7,7 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const VERSION = "7.1.0";
+const VERSION = "7.2.0";
+const MEMORY_REPO = "tivo-dev-agent-ai-memory";
+const MEMORY_FILE = "memory/tivo-system-memory.json";
 
 // ===== FULL DATABASE SCHEMA (so AI knows the structure) =====
 const DB_SCHEMA = `
@@ -26,6 +28,7 @@ TABLES (with key columns + RLS):
 9. chat_messages (id, session_id, user_id, role, content) — User own only
 10. automation_tasks (id, user_id, title, description, status, steps[jsonb], current_step, schedule, last_run_at) — User own only
 11. ai_proposals (id, action_type, risk_level[low|medium|high|critical], title, description, payload, status[pending|approved|rejected|executed], requested_by, reviewed_by, review_note, executed_at, execution_result, estimated_cost) — Auth users INSERT, Admin manages all. ⚠️ ALWAYS create proposal here BEFORE deploy/schema-change/cost-incurring action
+12. ai_memories (id, scope[system|user|project|research], owner_user_id, title, content, tags[], source, confidence, metadata, last_used_at) — Admin manages all; users can manage own user/project memories only
 
 FUNCTIONS:
 - has_role(_user_id uuid, _role app_role) → bool — SECURITY DEFINER, use in RLS to avoid recursion
@@ -41,6 +44,7 @@ RULES FOR AI:
 ✅ For schema changes → propose via ai_proposals first, wait admin approval
 ✅ For inserts on user-data tables, ALWAYS set user_id = auth.uid()
 ✅ For admin-only tables, check has_role(auth.uid(), 'admin') first
+✅ Store durable AI learning in ai_memories; if DB offline, use GitHub private JSON memory fallback
 ❌ NEVER touch auth.* / storage.* / realtime.* / vault.* schemas
 ❌ NEVER store secrets/tokens in profiles or any non-system_config table
 `;
@@ -51,7 +55,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, systemContext, isAdmin, userPlan, attachments, model } = await req.json();
+    const { messages, systemContext, isAdmin, userPlan, attachments, model, dynamicVariables } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
@@ -133,6 +137,43 @@ serve(async (req) => {
       } catch {}
     }
 
+    const readGithubMemory = async () => {
+      if (!githubToken) return { available: false, content: "", note: "GitHub token missing" };
+      try {
+        const userRes = await fetch("https://api.github.com/user", { headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json" } });
+        if (!userRes.ok) return { available: false, content: "", note: "GitHub token invalid" };
+        const ghUser = await userRes.json();
+        const owner = ghUser.login;
+        let repoRes = await fetch(`https://api.github.com/repos/${owner}/${MEMORY_REPO}`, { headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json" } });
+        if (repoRes.status === 404) {
+          await fetch("https://api.github.com/user/repos", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+            body: JSON.stringify({ name: MEMORY_REPO, private: true, auto_init: true, description: "Private JSON memory for TIVO DEV AGENT. Not deployed or built." }),
+          });
+          repoRes = await fetch(`https://api.github.com/repos/${owner}/${MEMORY_REPO}`, { headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json" } });
+        }
+        if (!repoRes.ok) return { available: false, content: "", note: "Memory repo unavailable" };
+        const fileRes = await fetch(`https://api.github.com/repos/${owner}/${MEMORY_REPO}/contents/${MEMORY_FILE}`, { headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json" } });
+        if (fileRes.ok) {
+          const file = await fileRes.json();
+          const decoded = atob(String(file.content || "").replace(/\n/g, ""));
+          return { available: true, content: decoded.slice(0, 6000), note: `GitHub memory loaded from private repo ${owner}/${MEMORY_REPO}` };
+        }
+        const initialMemory = JSON.stringify({ version: VERSION, purpose: "TIVO DEV AGENT permanent memory", rules: ["Admin approval required before deployment, schema changes, cost-incurring operations", "Never expose secrets", "Use custom database when configured"], memories: [], updated_at: new Date().toISOString() }, null, 2);
+        await fetch(`https://api.github.com/repos/${owner}/${MEMORY_REPO}/contents/${MEMORY_FILE}`, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+          body: JSON.stringify({ message: "Initialize TIVO AI memory", content: btoa(initialMemory) }),
+        });
+        return { available: true, content: initialMemory, note: `GitHub memory initialized in private repo ${owner}/${MEMORY_REPO}` };
+      } catch (e) {
+        return { available: false, content: "", note: e instanceof Error ? e.message : "GitHub memory failed" };
+      }
+    };
+
+    const githubMemory = await readGithubMemory();
+
     // Check AI provider keys + admin custom tokens
     let aiKeysStatus: Record<string, boolean> = {
       GEMINI_API_KEY: false,
@@ -187,10 +228,19 @@ AI Provider Keys (admin-managed):
 • DeepSeek:  ${aiKeysStatus.DEEPSEEK_API_KEY ? "✅" : "❌"}
 • HF Infer:  ${aiKeysStatus.HF_INFERENCE_TOKEN ? "✅" : "❌"}
 • Tavily:    ${aiKeysStatus.TAVILY_API_KEY ? "✅ (web search available)" : "❌ (web search disabled)"}
+• GitHub Memory: ${githubMemory.available ? "✅ PRIVATE JSON MEMORY ACTIVE" : `❌ ${githubMemory.note}`}
 ═══════════════════════════════════════════════════
 
 ⚡ This is REAL-TIME data. NEVER fake "configured" status. If ❌ — guide user to fix it.
 `;
+
+    const dynamicVariablesContext = dynamicVariables && Array.isArray(dynamicVariables) && dynamicVariables.length > 0
+      ? `\n\n🔐 USER DYNAMIC VARIABLES (provided by current logged-in user's settings):\n${dynamicVariables.map((v: any) => `• ${String(v.key)} = ${String(v.value).slice(0, 500)}`).join("\n")}\nUse them only for this user's requested project build/configuration. Never reveal secret values back in chat.`
+      : "\n\n🔐 USER DYNAMIC VARIABLES: none provided in this request.";
+
+    const memoryContext = `\n\n🧠 PERMANENT MEMORY STATUS:\n${githubMemory.note}\n${githubMemory.content ? `Current memory JSON excerpt:\n${githubMemory.content}` : "No GitHub memory content available."}\nWhen you learn durable strategy/API health/project architecture facts, propose saving them to ai_memories or GitHub memory; do not pretend a memory write happened unless a tool/backend confirms it.`;
+
+    const customDatabaseBootstrapGuide = `\n\n🗄️ CUSTOM DATABASE AUTO-BOOTSTRAP PLAYBOOK:\nWhen CUSTOM_SUPABASE_URL + CUSTOM_SUPABASE_SERVICE_KEY are configured, explain that AI can use the service key server-side only to bootstrap the custom DB. Required setup:\n1. Create missing public tables: profiles, user_credits, user_roles, system_config, payment_requests, projects, project_messages, chat_sessions, chat_messages, automation_tasks, ai_proposals, ai_memories.\n2. Enable RLS and reproduce policies from the schema above.\n3. Copy existing rows table-by-table from the current database to the custom database, preserving IDs/timestamps where possible.\n4. Verify counts after copy and create an ai_proposals notification with migration summary.\n5. Never run destructive sync without admin approval. If schema/data migration is needed, create a pending proposal first.\nIf direct bootstrap fails because the custom DB lacks schema/RLS, tell admin exactly which key/table failed and propose the next action.`;
 
     // ===== ROLE-BASED PERSONA =====
     const adminPersona = `
@@ -279,8 +329,12 @@ CAPABILITIES
 6. 🔍 Tavily web search: Research current best practices
 7. 🏭 Auto-build: description → generate → audit → fix → publish (via ai_proposals approval)
 8. 📦 File analysis: ZIP, images, code, documents
+9. 🧠 Permanent memory: ai_memories table first, GitHub private JSON fallback if DB is offline
 
 ${liveStatus}
+${memoryContext}
+${dynamicVariablesContext}
+${customDatabaseBootstrapGuide}
 
 ═══════════════════════════════════════════════════
 CONFIGURATION GUIDANCE (give exact steps)
