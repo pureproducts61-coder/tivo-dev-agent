@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,7 +12,7 @@ import {
   RefreshCw, Loader2, Activity, Server, GitBranch, Globe, Zap, Save, Eye, EyeOff, Shield,
   TrendingUp, BarChart3, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight,
   Ban, UserCheck, Phone, Mail, Facebook, Youtube, Instagram, ExternalLink,
-  Wifi, WifiOff, AlertTriangle, ChevronRight, ChevronDown, KeyRound, Database
+  Wifi, WifiOff, AlertTriangle, ChevronRight, ChevronDown, KeyRound, Database, FileText
 } from 'lucide-react';
 import { AdminPermissions } from './AdminPermissions';
 import { AdminProposals } from './AdminProposals';
@@ -60,6 +61,25 @@ const SITE_SETTINGS_FIELDS = [
   { key: 'tiktok_url', label: 'TikTok', icon: ExternalLink, placeholder: 'https://tiktok.com/...' },
 ];
 
+const DEFAULT_LANDING_CONTENT = JSON.stringify({
+  headline_bn: 'আপনার AI ডেভেলপমেন্ট পার্টনার',
+  headline_en: 'Your AI Development Partner',
+  subtitle_bn: 'কোড, GitHub, Vercel, database, automation এবং business strategy — সবকিছু একটি professional AI agent থেকে।',
+  subtitle_en: 'Code, GitHub, Vercel, database, automation and business strategy — all from one professional AI agent.',
+  feature_intro_bn: 'TIVO DEV AGENT শুধু চ্যাট নয় — এটি project planning, build workflow, deployment approval, API health এবং admin-controlled automation বুঝে কাজ করে।',
+  feature_intro_en: 'TIVO DEV AGENT is more than chat — it understands project planning, build workflow, deployment approval, API health and admin-controlled automation.',
+  features: [
+    'Project planning ও code generation',
+    'GitHub/Vercel/HF token-aware workflow',
+    'Admin approval proposals ও notifications',
+    'Custom database bootstrap guidance',
+    'Permanent AI memory fallback',
+    'Mobile/Desktop responsive workspace'
+  ],
+  plan_note_bn: 'প্ল্যান অনুযায়ী credit, automation এবং support সীমা admin panel থেকে নিয়ন্ত্রণ করা যায়।',
+  plan_note_en: 'Credits, automation and support limits can be controlled from the admin panel by plan.'
+}, null, 2);
+
 const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#8b5cf6', '#f59e0b', '#10b981'];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -83,6 +103,7 @@ const MENU_ITEMS = [
   { id: 'payments', label: 'পেমেন্ট', icon: CreditCard },
   { id: 'users', label: 'ইউজার', icon: Users },
   { id: 'site', label: 'সাইট', icon: Globe },
+  { id: 'landing', label: 'ল্যান্ডিং কনটেন্ট', icon: FileText },
   { id: 'permissions', label: 'পারমিশন', icon: Shield },
   { id: 'api', label: 'API', icon: Cpu },
 ];
