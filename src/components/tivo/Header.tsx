@@ -18,9 +18,10 @@ interface HeaderProps {
   onTabChange: (tab: string) => void;
   onOpenSettings: () => void;
   onOpenAdmin?: () => void;
+  onOpenAdminProposals?: () => void;
 }
 
-export const Header = ({ activeTab, onTabChange, onOpenSettings, onOpenAdmin }: HeaderProps) => {
+export const Header = ({ activeTab, onTabChange, onOpenSettings, onOpenAdmin, onOpenAdminProposals }: HeaderProps) => {
   const { user, signOut } = useAuth();
   const { isAdmin } = useAdmin();
   const navigate = useNavigate();
@@ -79,7 +80,7 @@ export const Header = ({ activeTab, onTabChange, onOpenSettings, onOpenAdmin }: 
           </div>
 
           <div className="flex items-center gap-1.5">
-            <NotificationBell />
+            <NotificationBell onOpenAdminProposals={onOpenAdminProposals} />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
