@@ -45,6 +45,7 @@ const SYSTEM_TOKEN_FIELDS = [
   { key: 'CUSTOM_SUPABASE_URL', label: 'Custom Supabase URL', desc: 'নিজস্ব ডাটাবেইজ কানেক্ট করতে', placeholder: 'https://xxx.supabase.co' },
   { key: 'CUSTOM_SUPABASE_ANON_KEY', label: 'Custom Supabase Anon Key', desc: 'Public key (frontend)', placeholder: 'eyJhbGciOiJI...' },
   { key: 'CUSTOM_SUPABASE_SERVICE_KEY', label: 'Custom Supabase Service Role Key', desc: 'Admin key (server-side, AI ব্যবহার করবে)', placeholder: 'eyJhbGciOiJI...' },
+  { key: 'CUSTOM_SUPABASE_DB_URL', label: 'Custom Database URL', desc: 'Schema bootstrap/migration-এর জন্য Postgres connection string', placeholder: 'postgresql://postgres:...' },
 ];
 
 const SITE_SETTINGS_FIELDS = [
@@ -183,6 +184,18 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
         if (value.trim()) {
           await supabase.from('system_config').upsert({ key, value: value.trim(), updated_by: user?.id } as any, { onConflict: 'key' });
         }
+      }
+      const customKeys = ['CUSTOM_SUPABASE_URL', 'CUSTOM_SUPABASE_SERVICE_KEY', 'CUSTOM_SUPABASE_DB_URL'];
+      if (customKeys.some(key => sysTokens[key]?.trim())) {
+        await supabase.from('ai_proposals').insert({
+          action_type: 'custom_database_bootstrap',
+          risk_level: 'high',
+          title: 'Custom database bootstrap ও data sync',
+          description: 'Custom Supabase config আপডেট হয়েছে। AI বর্তমান schema/data custom database-এ setup ও migrate করার আগে admin approval চাইছে।',
+          payload: { keys_updated: customKeys.filter(key => sysTokens[key]?.trim()), requires_approval: true },
+          requested_by: user?.id,
+          status: 'pending',
+        } as any);
       }
       toast({ title: '✅ সিস্টেম টোকেন সেভ হয়েছে', description: 'AI এখন এই tokens ব্যবহার করবে।' });
       setSysTokens({});
