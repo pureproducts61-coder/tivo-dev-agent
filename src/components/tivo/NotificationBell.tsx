@@ -11,11 +11,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface Notification {
   id: string;
-  type: 'build' | 'deploy' | 'connection' | 'activity' | 'info' | 'user' | 'api' | 'project' | 'system';
+  type: 'build' | 'deploy' | 'connection' | 'activity' | 'info' | 'user' | 'api' | 'project' | 'system' | 'proposal';
   title: string;
   message: string;
   timestamp: string;
   read: boolean;
+  action?: 'open-proposals';
+}
+
+interface NotificationBellProps {
+  onOpenAdminProposals?: () => void;
 }
 
 const typeIcons: Record<string, any> = {
@@ -28,6 +33,7 @@ const typeIcons: Record<string, any> = {
   api: Key,
   project: CheckCircle2,
   system: Database,
+  proposal: AlertTriangle,
 };
 
 const typeColors: Record<string, string> = {
@@ -40,15 +46,27 @@ const typeColors: Record<string, string> = {
   api: 'text-orange-400',
   project: 'text-primary',
   system: 'text-rose-400',
+  proposal: 'text-primary',
 };
 
-export const NotificationBell = () => {
+export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps) => {
   const { isConnected, getLogs, status } = useBackendApi();
   const { isAdmin } = useAdmin();
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [pendingProposalCount, setPendingProposalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+
+  const notifyBrowser = useCallback((title: string, body: string) => {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') new Notification(title, { body });
+    else if (Notification.permission === 'default') {
+      Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') new Notification(title, { body });
+      });
+    }
+  }, []);
 
   // Connection status notification
   useEffect(() => {
