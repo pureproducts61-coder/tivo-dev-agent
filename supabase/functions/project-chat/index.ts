@@ -329,8 +329,12 @@ CAPABILITIES
 6. 🔍 Tavily web search: Research current best practices
 7. 🏭 Auto-build: description → generate → audit → fix → publish (via ai_proposals approval)
 8. 📦 File analysis: ZIP, images, code, documents
+9. 🧠 Permanent memory: ai_memories table first, GitHub private JSON fallback if DB is offline
 
 ${liveStatus}
+${memoryContext}
+${dynamicVariablesContext}
+${customDatabaseBootstrapGuide}
 
 ═══════════════════════════════════════════════════
 CONFIGURATION GUIDANCE (give exact steps)
