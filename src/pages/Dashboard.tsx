@@ -380,6 +380,7 @@ const Dashboard = () => {
         onTabChange={setActiveTab}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenAdmin={() => setAdminOpen(true)}
+        onOpenAdminProposals={() => { setAdminInitialTab('proposals'); setAdminOpen(true); }}
       />
 
       <div className="flex-1 flex pt-14">
@@ -403,7 +404,7 @@ const Dashboard = () => {
 
       <FloatingInputBar onSend={handleSend} isLoading={isLoading} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <AdminDashboard open={adminOpen} onClose={() => setAdminOpen(false)} />
+      <AdminDashboard open={adminOpen} onClose={() => setAdminOpen(false)} initialTab={adminInitialTab} />
       <ModeSwitchDialog />
       <ActionConfirmation action={pendingAction} onConfirm={handleConfirmAction} onModify={handleModifyAction} />
     </div>
