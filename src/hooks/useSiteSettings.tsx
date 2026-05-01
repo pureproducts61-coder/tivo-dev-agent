@@ -5,6 +5,7 @@ const SITE_KEYS = [
   'bkash_number', 'nagad_number', 'rocket_number',
   'contact_email', 'contact_phone',
   'facebook_url', 'youtube_url', 'instagram_url', 'tiktok_url',
+  'landing_content',
 ];
 
 export const useSiteSettings = () => {
