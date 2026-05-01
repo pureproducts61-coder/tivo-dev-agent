@@ -7,7 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const VERSION = "7.1.0";
+const VERSION = "7.2.0";
+const MEMORY_REPO = "tivo-dev-agent-ai-memory";
+const MEMORY_FILE = "memory/tivo-system-memory.json";
 
 // ===== FULL DATABASE SCHEMA (so AI knows the structure) =====
 const DB_SCHEMA = `
@@ -51,7 +53,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, systemContext, isAdmin, userPlan, attachments, model } = await req.json();
+    const { messages, systemContext, isAdmin, userPlan, attachments, model, dynamicVariables } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
@@ -132,6 +134,43 @@ serve(async (req) => {
         vercelLive = r.ok;
       } catch {}
     }
+
+    const readGithubMemory = async () => {
+      if (!githubToken) return { available: false, content: "", note: "GitHub token missing" };
+      try {
+        const userRes = await fetch("https://api.github.com/user", { headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json" } });
+        if (!userRes.ok) return { available: false, content: "", note: "GitHub token invalid" };
+        const ghUser = await userRes.json();
+        const owner = ghUser.login;
+        let repoRes = await fetch(`https://api.github.com/repos/${owner}/${MEMORY_REPO}`, { headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json" } });
+        if (repoRes.status === 404) {
+          await fetch("https://api.github.com/user/repos", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+            body: JSON.stringify({ name: MEMORY_REPO, private: true, auto_init: true, description: "Private JSON memory for TIVO DEV AGENT. Not deployed or built." }),
+          });
+          repoRes = await fetch(`https://api.github.com/repos/${owner}/${MEMORY_REPO}`, { headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json" } });
+        }
+        if (!repoRes.ok) return { available: false, content: "", note: "Memory repo unavailable" };
+        const fileRes = await fetch(`https://api.github.com/repos/${owner}/${MEMORY_REPO}/contents/${MEMORY_FILE}`, { headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json" } });
+        if (fileRes.ok) {
+          const file = await fileRes.json();
+          const decoded = atob(String(file.content || "").replace(/\n/g, ""));
+          return { available: true, content: decoded.slice(0, 6000), note: `GitHub memory loaded from private repo ${owner}/${MEMORY_REPO}` };
+        }
+        const initialMemory = JSON.stringify({ version: VERSION, purpose: "TIVO DEV AGENT permanent memory", rules: ["Admin approval required before deployment, schema changes, cost-incurring operations", "Never expose secrets", "Use custom database when configured"], memories: [], updated_at: new Date().toISOString() }, null, 2);
+        await fetch(`https://api.github.com/repos/${owner}/${MEMORY_REPO}/contents/${MEMORY_FILE}`, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+          body: JSON.stringify({ message: "Initialize TIVO AI memory", content: btoa(initialMemory) }),
+        });
+        return { available: true, content: initialMemory, note: `GitHub memory initialized in private repo ${owner}/${MEMORY_REPO}` };
+      } catch (e) {
+        return { available: false, content: "", note: e instanceof Error ? e.message : "GitHub memory failed" };
+      }
+    };
+
+    const githubMemory = await readGithubMemory();
 
     // Check AI provider keys + admin custom tokens
     let aiKeysStatus: Record<string, boolean> = {
