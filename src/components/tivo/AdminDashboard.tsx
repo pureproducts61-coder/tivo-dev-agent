@@ -125,6 +125,8 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
   const [loadingKeys, setLoadingKeys] = useState(false);
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
   const [savingSiteSettings, setSavingSiteSettings] = useState(false);
+  const [landingContent, setLandingContent] = useState(DEFAULT_LANDING_CONTENT);
+  const [savingLandingContent, setSavingLandingContent] = useState(false);
   const [realTimeStatus, setRealTimeStatus] = useState<Record<string, 'checking' | 'active' | 'inactive'>>({});
   const [sysTokens, setSysTokens] = useState<Record<string, string>>({});
   const [sysTokenStatus, setSysTokenStatus] = useState<Record<string, boolean>>({});
@@ -183,6 +185,7 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
       const settings: Record<string, string> = {};
       data?.forEach((d: any) => { settings[d.key] = d.value; });
       setSiteSettings(settings);
+      setLandingContent(settings.landing_content || DEFAULT_LANDING_CONTENT);
     } catch {}
   };
 
@@ -313,6 +316,18 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'ত্রুটি', description: e.message });
     } finally { setSavingSiteSettings(false); }
+  };
+
+  const saveLandingContentHandler = async () => {
+    setSavingLandingContent(true);
+    try {
+      JSON.parse(landingContent);
+      await supabase.from('system_config').upsert({ key: 'landing_content', value: landingContent.trim(), updated_by: user?.id } as any, { onConflict: 'key' });
+      toast({ title: '✅ ল্যান্ডিং কনটেন্ট সেভ হয়েছে' });
+      fetchSiteSettings();
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'JSON ভুল আছে', description: e.message });
+    } finally { setSavingLandingContent(false); }
   };
 
   const getUserProfile = (userId: string) => profiles.find(p => p.user_id === userId);
