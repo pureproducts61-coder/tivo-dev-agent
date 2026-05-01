@@ -21,7 +21,7 @@ import {
   PieChart, Pie, Cell, AreaChart, Area, CartesianGrid
 } from 'recharts';
 
-interface AdminDashboardProps { open: boolean; onClose: () => void; }
+interface AdminDashboardProps { open: boolean; onClose: () => void; initialTab?: string; }
 
 interface SystemStatus {
   tokens: Record<string, boolean>;
@@ -86,7 +86,7 @@ const MENU_ITEMS = [
   { id: 'api', label: 'API', icon: Cpu },
 ];
 
-export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
+export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: AdminDashboardProps) => {
   const { user, session } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [payments, setPayments] = useState<any[]>([]);
@@ -111,9 +111,10 @@ export const AdminDashboard = ({ open, onClose }: AdminDashboardProps) => {
 
   useEffect(() => {
     if (open) {
+      setActiveTab(initialTab);
       fetchPayments(); fetchUsers(); fetchSystemStatus(); fetchApiKeyStatus(); fetchSiteSettings(); checkRealTimeConnections(); fetchSysTokens();
     }
-  }, [open]);
+  }, [open, initialTab]);
 
   const fetchPayments = async () => {
     setLoadingPayments(true);
