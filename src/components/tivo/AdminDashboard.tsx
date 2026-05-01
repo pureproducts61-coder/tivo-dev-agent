@@ -680,6 +680,24 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
           </div>
         );
 
+      case 'landing':
+        return (
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><FileText className="w-4 h-4 text-primary" /> ল্যান্ডিং কনটেন্ট</h3>
+            <p className="text-[11px] text-muted-foreground bg-muted/20 rounded-xl px-3 py-2">
+              JSON হিসেবে hero text, feature list ও plan note আপডেট করুন। ভুল JSON হলে সেভ হবে না।
+            </p>
+            <Textarea
+              value={landingContent}
+              onChange={(e) => setLandingContent(e.target.value)}
+              className="min-h-[320px] bg-background/50 border-border/50 text-xs font-mono rounded-xl"
+            />
+            <Button onClick={saveLandingContentHandler} disabled={savingLandingContent} className="w-full gap-2 rounded-xl h-9">
+              {savingLandingContent ? <><Loader2 className="w-4 h-4 animate-spin" /> সেভ হচ্ছে...</> : <><Save className="w-4 h-4" /> ল্যান্ডিং কনটেন্ট সেভ করুন</>}
+            </Button>
+          </div>
+        );
+
       case 'proposals':
         return <AdminProposals />;
 
