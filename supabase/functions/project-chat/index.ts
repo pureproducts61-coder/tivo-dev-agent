@@ -228,10 +228,19 @@ AI Provider Keys (admin-managed):
 • DeepSeek:  ${aiKeysStatus.DEEPSEEK_API_KEY ? "✅" : "❌"}
 • HF Infer:  ${aiKeysStatus.HF_INFERENCE_TOKEN ? "✅" : "❌"}
 • Tavily:    ${aiKeysStatus.TAVILY_API_KEY ? "✅ (web search available)" : "❌ (web search disabled)"}
+• GitHub Memory: ${githubMemory.available ? "✅ PRIVATE JSON MEMORY ACTIVE" : `❌ ${githubMemory.note}`}
 ═══════════════════════════════════════════════════
 
 ⚡ This is REAL-TIME data. NEVER fake "configured" status. If ❌ — guide user to fix it.
 `;
+
+    const dynamicVariablesContext = dynamicVariables && Array.isArray(dynamicVariables) && dynamicVariables.length > 0
+      ? `\n\n🔐 USER DYNAMIC VARIABLES (provided by current logged-in user's settings):\n${dynamicVariables.map((v: any) => `• ${String(v.key)} = ${String(v.value).slice(0, 500)}`).join("\n")}\nUse them only for this user's requested project build/configuration. Never reveal secret values back in chat.`
+      : "\n\n🔐 USER DYNAMIC VARIABLES: none provided in this request.";
+
+    const memoryContext = `\n\n🧠 PERMANENT MEMORY STATUS:\n${githubMemory.note}\n${githubMemory.content ? `Current memory JSON excerpt:\n${githubMemory.content}` : "No GitHub memory content available."}\nWhen you learn durable strategy/API health/project architecture facts, propose saving them to ai_memories or GitHub memory; do not pretend a memory write happened unless a tool/backend confirms it.`;
+
+    const customDatabaseBootstrapGuide = `\n\n🗄️ CUSTOM DATABASE AUTO-BOOTSTRAP PLAYBOOK:\nWhen CUSTOM_SUPABASE_URL + CUSTOM_SUPABASE_SERVICE_KEY are configured, explain that AI can use the service key server-side only to bootstrap the custom DB. Required setup:\n1. Create missing public tables: profiles, user_credits, user_roles, system_config, payment_requests, projects, project_messages, chat_sessions, chat_messages, automation_tasks, ai_proposals, ai_memories.\n2. Enable RLS and reproduce policies from the schema above.\n3. Copy existing rows table-by-table from the current database to the custom database, preserving IDs/timestamps where possible.\n4. Verify counts after copy and create an ai_proposals notification with migration summary.\n5. Never run destructive sync without admin approval. If schema/data migration is needed, create a pending proposal first.\nIf direct bootstrap fails because the custom DB lacks schema/RLS, tell admin exactly which key/table failed and propose the next action.`;
 
     // ===== ROLE-BASED PERSONA =====
     const adminPersona = `
