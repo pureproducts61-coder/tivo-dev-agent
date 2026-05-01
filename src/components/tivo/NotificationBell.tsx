@@ -300,7 +300,13 @@ export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps
                     key={n.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className={`px-4 py-3 flex gap-3 hover:bg-muted/30 transition-colors ${n.read ? 'opacity-50' : ''}`}
+                    className={`px-4 py-3 flex gap-3 hover:bg-muted/30 transition-colors ${n.action ? 'cursor-pointer' : ''} ${n.read ? 'opacity-50' : ''}`}
+                    onClick={() => {
+                      if (n.action === 'open-proposals') {
+                        setOpen(false);
+                        onOpenAdminProposals?.();
+                      }
+                    }}
                   >
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
                       n.read ? 'bg-muted/30' : 'bg-primary/10'
