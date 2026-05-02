@@ -16,7 +16,10 @@ import {
 } from 'lucide-react';
 import { AdminPermissions } from './AdminPermissions';
 import { AdminProposals } from './AdminProposals';
-import { Sparkles } from 'lucide-react';
+import { CustomDatabaseTester } from './CustomDatabaseTester';
+import { HealthCheckPanel } from './HealthCheckPanel';
+import { AIMemoryManager } from './AIMemoryManager';
+import { Sparkles, Brain, HeartPulse } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, CartesianGrid
