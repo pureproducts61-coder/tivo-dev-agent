@@ -773,6 +773,10 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
             >
               {savingSysTokens ? <><Loader2 className="w-4 h-4 animate-spin" /> সেভ হচ্ছে...</> : <><Save className="w-4 h-4" /> সেভ করুন</>}
             </Button>
+
+            <div className="pt-3 border-t border-border/30">
+              <CustomDatabaseTester />
+            </div>
           </div>
         );
 
