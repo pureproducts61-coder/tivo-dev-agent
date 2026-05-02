@@ -16,7 +16,10 @@ import {
 } from 'lucide-react';
 import { AdminPermissions } from './AdminPermissions';
 import { AdminProposals } from './AdminProposals';
-import { Sparkles } from 'lucide-react';
+import { CustomDatabaseTester } from './CustomDatabaseTester';
+import { HealthCheckPanel } from './HealthCheckPanel';
+import { AIMemoryManager } from './AIMemoryManager';
+import { Sparkles, Brain, HeartPulse } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, CartesianGrid
@@ -62,22 +65,50 @@ const SITE_SETTINGS_FIELDS = [
 ];
 
 const DEFAULT_LANDING_CONTENT = JSON.stringify({
-  headline_bn: 'আপনার AI ডেভেলপমেন্ট পার্টনার',
-  headline_en: 'Your AI Development Partner',
-  subtitle_bn: 'কোড, GitHub, Vercel, database, automation এবং business strategy — সবকিছু একটি professional AI agent থেকে।',
-  subtitle_en: 'Code, GitHub, Vercel, database, automation and business strategy — all from one professional AI agent.',
-  feature_intro_bn: 'TIVO DEV AGENT শুধু চ্যাট নয় — এটি project planning, build workflow, deployment approval, API health এবং admin-controlled automation বুঝে কাজ করে।',
-  feature_intro_en: 'TIVO DEV AGENT is more than chat — it understands project planning, build workflow, deployment approval, API health and admin-controlled automation.',
-  features: [
-    'Project planning ও code generation',
-    'GitHub/Vercel/HF token-aware workflow',
-    'Admin approval proposals ও notifications',
-    'Custom database bootstrap guidance',
-    'Permanent AI memory fallback',
-    'Mobile/Desktop responsive workspace'
-  ],
-  plan_note_bn: 'প্ল্যান অনুযায়ী credit, automation এবং support সীমা admin panel থেকে নিয়ন্ত্রণ করা যায়।',
-  plan_note_en: 'Credits, automation and support limits can be controlled from the admin panel by plan.'
+  brand: { name: 'TIVO DEV AGENT', tagline_bn: 'Autonomous AI SaaS Platform', tagline_en: 'Autonomous AI SaaS Platform', version: '7.3.0' },
+  hero: {
+    headline_bn: 'আপনার AI ডেভেলপমেন্ট পার্টনার',
+    headline_en: 'Your AI Development Partner',
+    subtitle_bn: 'কোড, GitHub, Vercel, database, automation এবং business strategy — সবকিছু একটি professional AI agent থেকে।',
+    subtitle_en: 'Code, GitHub, Vercel, database, automation and business strategy — all from one professional AI agent.',
+    cta_primary_bn: 'শুরু করুন', cta_primary_en: 'Get Started',
+    cta_secondary_bn: 'প্ল্যান দেখুন', cta_secondary_en: 'View Plans',
+  },
+  features_section: {
+    title_bn: 'কেন TIVO DEV?', title_en: 'Why TIVO DEV?',
+    intro_bn: 'TIVO DEV AGENT শুধু চ্যাট নয় — এটি project planning, build workflow, deployment approval, API health এবং admin-controlled automation বুঝে কাজ করে।',
+    intro_en: 'TIVO DEV AGENT is more than chat — it understands project planning, build workflow, deployment approval, API health and admin-controlled automation.',
+    items: [
+      { icon: 'Code2', title_bn: 'AI কোড জেনারেশন', title_en: 'AI Code Gen', desc_bn: 'প্রম্পট দিন, কোড পান — GitHub-এ সরাসরি পুশ।', desc_en: 'Prompt in, code out — push to GitHub.' },
+      { icon: 'Zap', title_bn: 'অটোমেশন', title_en: 'Automation', desc_bn: 'GitHub Actions, Vercel deploy অটোমেটিক।', desc_en: 'GitHub Actions, Vercel deploy automated.' },
+      { icon: 'Shield', title_bn: 'সিকিউর টোকেন', title_en: 'Secure Tokens', desc_bn: 'API কী আপনার ব্রাউজারে।', desc_en: 'API keys stay in your browser.' },
+      { icon: 'Globe', title_bn: 'ওয়ান-ক্লিক পাবলিশ', title_en: 'One-click Publish', desc_bn: 'বিল্ড, প্রিভিউ, শেয়ার।', desc_en: 'Build, preview, share.' },
+    ],
+    highlights: ['Project planning', 'GitHub/Vercel/HF token-aware', 'Admin approval proposals', 'Custom database bootstrap', 'Permanent AI memory', 'Mobile/Desktop responsive'],
+  },
+  pricing_section: {
+    title_bn: 'প্ল্যান বেছে নিন', title_en: 'Choose a Plan',
+    subtitle_bn: 'বিকাশ, নগদ বা রকেট দিয়ে পেমেন্ট করুন', subtitle_en: 'Pay with bKash, Nagad or Rocket',
+    note_bn: 'প্ল্যান অনুযায়ী credit, automation এবং support সীমা admin panel থেকে নিয়ন্ত্রণ করা যায়।',
+    note_en: 'Credits, automation and support limits can be controlled from the admin panel by plan.',
+    plans: [
+      { id: 'free', name_bn: 'Free', name_en: 'Free', price: '০', currency: '৳', period_bn: '/মাস', period_en: '/mo',
+        features_bn: ['৫ ডেইলি ক্রেডিট', '৫০ মান্থলি ক্রেডিট', 'বেসিক AI চ্যাট', 'GitHub ইন্টিগ্রেশন'],
+        features_en: ['5 daily credits', '50 monthly credits', 'Basic AI chat', 'GitHub integration'],
+        cta_bn: 'ফ্রিতে শুরু করুন', cta_en: 'Start Free', popular: false },
+      { id: 'standard', name_bn: 'Standard', name_en: 'Standard', price: '২৯৯', currency: '৳', period_bn: '/মাস', period_en: '/mo',
+        features_bn: ['৫০ ডেইলি ক্রেডিট', '১০০০ মান্থলি ক্রেডিট', 'সকল AI মোড', 'Vercel ডিপ্লয়', 'অটোমেশন', 'প্রায়োরিটি সাপোর্ট'],
+        features_en: ['50 daily credits', '1000 monthly credits', 'All AI modes', 'Vercel deploy', 'Automation', 'Priority support'],
+        cta_bn: 'Standard নিন', cta_en: 'Get Standard', popular: true },
+      { id: 'pro', name_bn: 'Pro', name_en: 'Pro', price: '৯৯৯', currency: '৳', period_bn: '/মাস', period_en: '/mo',
+        features_bn: ['আনলিমিটেড ক্রেডিট', 'সকল ফিচার', 'কাস্টম API কনফিগ', 'টিম কলাবোরেশন', 'অ্যাডভান্সড অটোমেশন', 'ডেডিকেটেড সাপোর্ট'],
+        features_en: ['Unlimited credits', 'All features', 'Custom API config', 'Team collaboration', 'Advanced automation', 'Dedicated support'],
+        cta_bn: 'Pro নিন', cta_en: 'Get Pro', popular: false },
+    ],
+  },
+  footer: { copyright_bn: '© 2026 TIVO DEV AGENT — সর্বস্বত্ব সংরক্ষিত।', copyright_en: '© 2026 TIVO DEV AGENT — All rights reserved.' },
+  ai_managed: true,
+  last_ai_update: null,
 }, null, 2);
 
 const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#8b5cf6', '#f59e0b', '#10b981'];
@@ -98,6 +129,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const MENU_ITEMS = [
   { id: 'overview', label: 'ওভারভিউ', icon: BarChart3 },
   { id: 'proposals', label: 'AI প্রপোজাল', icon: Sparkles },
+  { id: 'health', label: 'হেলথ চেক', icon: HeartPulse },
+  { id: 'memory', label: 'AI মেমোরি', icon: Brain },
   { id: 'system', label: 'সিস্টেম', icon: Activity },
   { id: 'sysTokens', label: 'সিস্টেম টোকেন', icon: KeyRound },
   { id: 'payments', label: 'পেমেন্ট', icon: CreditCard },
@@ -701,6 +734,12 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
       case 'proposals':
         return <AdminProposals />;
 
+      case 'health':
+        return <HealthCheckPanel />;
+
+      case 'memory':
+        return <AIMemoryManager />;
+
       case 'sysTokens':
         return (
           <div className="space-y-4">
@@ -762,6 +801,10 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
             >
               {savingSysTokens ? <><Loader2 className="w-4 h-4 animate-spin" /> সেভ হচ্ছে...</> : <><Save className="w-4 h-4" /> সেভ করুন</>}
             </Button>
+
+            <div className="pt-3 border-t border-border/30">
+              <CustomDatabaseTester />
+            </div>
           </div>
         );
 

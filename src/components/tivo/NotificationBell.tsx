@@ -231,6 +231,19 @@ export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps
           notifyBrowser('নতুন AI প্রপোজাল', p.title || p.action_type || 'Approval প্রয়োজন');
         }
       })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ai_proposals' }, (payload) => {
+        const p: any = payload.new;
+        const old: any = payload.old;
+        if (old?.status === 'pending' && p?.status !== 'pending') {
+          setPendingProposalCount(c => Math.max(0, c - 1));
+          setNotifications(prev => prev.filter(n => n.id !== `proposal-${p.id}`));
+        }
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'ai_proposals' }, (payload) => {
+        const old: any = payload.old;
+        if (old?.status === 'pending') setPendingProposalCount(c => Math.max(0, c - 1));
+        setNotifications(prev => prev.filter(n => n.id !== `proposal-${old?.id}`));
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [isAdmin, fetchAdminNotifications, notifyBrowser]);
