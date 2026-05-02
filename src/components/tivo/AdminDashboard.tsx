@@ -101,6 +101,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const MENU_ITEMS = [
   { id: 'overview', label: 'ওভারভিউ', icon: BarChart3 },
   { id: 'proposals', label: 'AI প্রপোজাল', icon: Sparkles },
+  { id: 'health', label: 'হেলথ চেক', icon: HeartPulse },
+  { id: 'memory', label: 'AI মেমোরি', icon: Brain },
   { id: 'system', label: 'সিস্টেম', icon: Activity },
   { id: 'sysTokens', label: 'সিস্টেম টোকেন', icon: KeyRound },
   { id: 'payments', label: 'পেমেন্ট', icon: CreditCard },
