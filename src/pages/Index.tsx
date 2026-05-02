@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { PaymentModal } from '@/components/tivo/PaymentModal';
 import { BrandLogo } from '@/components/tivo/BrandLogo';
 
-const VERSION = '7.1.0';
+const VERSION = '7.3.0';
 
 const SocialIcon = ({ type }: { type: string }) => {
   const icons: Record<string, string> = {
