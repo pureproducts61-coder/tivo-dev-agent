@@ -706,6 +706,12 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
       case 'proposals':
         return <AdminProposals />;
 
+      case 'health':
+        return <HealthCheckPanel />;
+
+      case 'memory':
+        return <AIMemoryManager />;
+
       case 'sysTokens':
         return (
           <div className="space-y-4">
