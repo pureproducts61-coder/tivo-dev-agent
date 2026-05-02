@@ -30,6 +30,20 @@ const Index = () => {
     catch { return {}; }
   })();
 
+  // Backward-compatible accessors (support both old flat & new nested schema)
+  const hero = landingContent.hero || {};
+  const featSec = landingContent.features_section || {};
+  const priceSec = landingContent.pricing_section || {};
+  const heroHeadline = t(hero.headline_bn || landingContent.headline_bn || 'আপনার AI ডেভেলপমেন্ট পার্টনার', hero.headline_en || landingContent.headline_en || 'Your AI Development Partner');
+  const heroSubtitle = t(hero.subtitle_bn || landingContent.subtitle_bn || 'কোড লিখুন, GitHub-এ পুশ করুন, Vercel-এ ডিপ্লয় করুন।', hero.subtitle_en || landingContent.subtitle_en || 'Write code, push to GitHub, deploy on Vercel.');
+  const ctaPrimary = t(hero.cta_primary_bn || 'শুরু করুন', hero.cta_primary_en || 'Get Started');
+  const ctaSecondary = t(hero.cta_secondary_bn || 'প্ল্যান দেখুন', hero.cta_secondary_en || 'View Plans');
+  const featuresTitle = t(featSec.title_bn || 'কেন TIVO DEV?', featSec.title_en || 'Why TIVO DEV?');
+  const featuresIntro = featSec.intro_bn || landingContent.feature_intro_bn ? t(featSec.intro_bn || landingContent.feature_intro_bn, featSec.intro_en || landingContent.feature_intro_en || featSec.intro_bn || landingContent.feature_intro_bn) : '';
+  const pricingTitle = t(priceSec.title_bn || 'প্ল্যান বেছে নিন', priceSec.title_en || 'Choose a Plan');
+  const pricingSubtitle = t(priceSec.subtitle_bn || 'বিকাশ, নগদ বা রকেট দিয়ে পেমেন্ট করুন', priceSec.subtitle_en || 'Pay with bKash, Nagad or Rocket');
+  const pricingNote = priceSec.note_bn || landingContent.plan_note_bn ? t(priceSec.note_bn || landingContent.plan_note_bn, priceSec.note_en || landingContent.plan_note_en || priceSec.note_bn || landingContent.plan_note_bn) : '';
+
   // Apply view mode by clamping page width
   useEffect(() => {
     const root = document.documentElement;
@@ -43,53 +57,26 @@ const Index = () => {
     };
   }, [viewMode]);
 
-  const plans = [
-    {
-      id: 'free',
-      name: t('Free', 'Free'),
-      price: '০',
-      period: t('/মাস', '/mo'),
-      features: [
-        t('৫ ডেইলি ক্রেডিট', '5 daily credits'),
-        t('৫০ মান্থলি ক্রেডিট', '50 monthly credits'),
-        t('বেসিক AI চ্যাট', 'Basic AI chat'),
-        t('GitHub ইন্টিগ্রেশন', 'GitHub integration'),
-      ],
-      cta: t('ফ্রিতে শুরু করুন', 'Start Free'),
-      popular: false,
-    },
-    {
-      id: 'standard',
-      name: t('Standard', 'Standard'),
-      price: '২৯৯',
-      period: t('৳/মাস', '৳/mo'),
-      features: [
-        t('৫০ ডেইলি ক্রেডিট', '50 daily credits'),
-        t('১০০০ মান্থলি ক্রেডিট', '1000 monthly credits'),
-        t('সকল AI মোড', 'All AI modes'),
-        t('Vercel ডিপ্লয়', 'Vercel deploy'),
-        t('অটোমেশন', 'Automation'),
-        t('প্রায়োরিটি সাপোর্ট', 'Priority support'),
-      ],
-      cta: t('Standard নিন', 'Get Standard'),
-      popular: true,
-    },
-    {
-      id: 'pro',
-      name: t('Pro', 'Pro'),
-      price: '৯৯৯',
-      period: t('৳/মাস', '৳/mo'),
-      features: [
-        t('আনলিমিটেড ক্রেডিট', 'Unlimited credits'),
-        t('সকল ফিচার', 'All features'),
-        t('কাস্টম API কনফিগ', 'Custom API config'),
-        t('টিম কলাবোরেশন', 'Team collaboration'),
-        t('অ্যাডভান্সড অটোমেশন', 'Advanced automation'),
-        t('ডেডিকেটেড সাপোর্ট', 'Dedicated support'),
-      ],
-      cta: t('Pro নিন', 'Get Pro'),
-      popular: false,
-    },
+  // Build plans from admin JSON if provided, else default
+  const plansSource = Array.isArray(priceSec.plans) && priceSec.plans.length > 0 ? priceSec.plans : null;
+  const plans = plansSource ? plansSource.map((p: any) => ({
+    id: p.id,
+    name: t(p.name_bn || p.name_en || p.id, p.name_en || p.name_bn || p.id),
+    price: p.price ?? '০',
+    period: t((p.currency || '') + (p.period_bn || '/মাস'), (p.currency || '') + (p.period_en || '/mo')),
+    features: (lang === 'bn' ? (p.features_bn || p.features_en || []) : (p.features_en || p.features_bn || [])) as string[],
+    cta: t(p.cta_bn || p.cta_en || 'নিন', p.cta_en || p.cta_bn || 'Choose'),
+    popular: !!p.popular,
+  })) : [
+    { id: 'free', name: t('Free', 'Free'), price: '০', period: t('/মাস', '/mo'),
+      features: [t('৫ ডেইলি ক্রেডিট', '5 daily credits'), t('৫০ মান্থলি ক্রেডিট', '50 monthly credits'), t('বেসিক AI চ্যাট', 'Basic AI chat'), t('GitHub ইন্টিগ্রেশন', 'GitHub integration')],
+      cta: t('ফ্রিতে শুরু করুন', 'Start Free'), popular: false },
+    { id: 'standard', name: t('Standard', 'Standard'), price: '২৯৯', period: t('৳/মাস', '৳/mo'),
+      features: [t('৫০ ডেইলি ক্রেডিট', '50 daily credits'), t('১০০০ মান্থলি ক্রেডিট', '1000 monthly credits'), t('সকল AI মোড', 'All AI modes'), t('Vercel ডিপ্লয়', 'Vercel deploy'), t('অটোমেশন', 'Automation'), t('প্রায়োরিটি সাপোর্ট', 'Priority support')],
+      cta: t('Standard নিন', 'Get Standard'), popular: true },
+    { id: 'pro', name: t('Pro', 'Pro'), price: '৯৯৯', period: t('৳/মাস', '৳/mo'),
+      features: [t('আনলিমিটেড ক্রেডিট', 'Unlimited credits'), t('সকল ফিচার', 'All features'), t('কাস্টম API কনফিগ', 'Custom API config'), t('টিম কলাবোরেশন', 'Team collaboration'), t('অ্যাডভান্সড অটোমেশন', 'Advanced automation'), t('ডেডিকেটেড সাপোর্ট', 'Dedicated support')],
+      cta: t('Pro নিন', 'Get Pro'), popular: false },
   ];
 
   const features = [
