@@ -114,42 +114,45 @@ const Index = () => {
         style={viewMode === 'mobile' ? { maxWidth: '420px', boxShadow: '0 0 0 1px hsl(var(--border))', minHeight: '100vh' } : {}}
       >
         {/* Navbar */}
-        <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border">
-          <div className="max-w-6xl mx-auto flex items-center justify-between px-4 h-14 gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <BrandLogo size={28} />
-              <span className="font-bold text-lg gradient-text truncate">TIVO DEV</span>
-              <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-mono shrink-0">v{VERSION}</span>
-            </div>
+        <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/60 backdrop-blur-xl">
+          <div className="max-w-6xl mx-auto flex items-center justify-between px-3 sm:px-4 h-14 gap-2">
+            {/* LEFT: language + device toggles (always visible, mobile-friendly) */}
             <div className="flex items-center gap-1.5 shrink-0">
-              {/* Language switcher */}
               <button
                 onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors text-xs font-semibold text-muted-foreground hover:text-foreground"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-muted/40 hover:bg-muted/70 transition-colors text-xs font-semibold text-foreground"
                 aria-label="Toggle language"
               >
                 <Languages className="w-3.5 h-3.5" />
                 <span>{lang === 'bn' ? 'বাং' : 'EN'}</span>
               </button>
-              {/* View mode toggle (hidden on smaller screens — only useful on big ones) */}
-              <div className="hidden sm:flex items-center bg-muted/30 rounded-lg p-0.5">
+              <div className="flex items-center bg-muted/40 rounded-lg p-0.5">
                 <button
                   onClick={() => setViewMode('desktop')}
-                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'desktop' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'desktop' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                   aria-label="Desktop view"
                 >
                   <Monitor className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => setViewMode('mobile')}
-                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'mobile' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'mobile' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                   aria-label="Mobile view"
                 >
                   <Smartphone className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <Button onClick={() => navigate(user ? '/dashboard' : '/auth')} className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground" size="sm">
-                {user ? t('ড্যাশবোর্ড', 'Dashboard') : t('শুরু করুন', 'Get Started')} <ArrowRight className="w-3.5 h-3.5" />
+            </div>
+            {/* CENTER: brand */}
+            <div className="flex items-center gap-1.5 min-w-0 absolute left-1/2 -translate-x-1/2 pointer-events-none">
+              <BrandLogo size={26} />
+              <span className="font-bold text-base sm:text-lg gradient-text truncate">TIVO DEV</span>
+              <span className="hidden sm:inline text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-mono shrink-0">v{VERSION}</span>
+            </div>
+            {/* RIGHT: CTA */}
+            <div className="flex items-center shrink-0">
+              <Button onClick={() => navigate(user ? '/dashboard' : '/auth')} className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg shadow-primary/20" size="sm">
+                {user ? t('ড্যাশবোর্ড', 'Dashboard') : t('শুরু', 'Start')} <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
@@ -196,12 +199,13 @@ const Index = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {features.map((f, i) => (
                 <motion.div key={f.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} viewport={{ once: true }}
-                  className="glass-card rounded-xl p-5 space-y-3 card-hover">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  className="group relative glass-card rounded-2xl p-5 space-y-3 card-hover overflow-hidden border border-border/40">
+                  <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center ring-1 ring-primary/20">
                     <f.icon className="w-5 h-5 text-primary" />
                   </div>
-                  <h3 className="font-semibold text-foreground">{f.title}</h3>
-                  <p className="text-sm text-muted-foreground">{f.desc}</p>
+                  <h3 className="relative font-semibold text-foreground">{f.title}</h3>
+                  <p className="relative text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
                 </motion.div>
               ))}
             </div>
@@ -246,26 +250,29 @@ const Index = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {plans.map((plan, i) => (
                 <motion.div key={plan.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} viewport={{ once: true }}
-                  className={`relative glass-card rounded-2xl p-6 space-y-5 card-hover ${plan.popular ? 'border-primary/40 ring-1 ring-primary/20' : ''}`}>
+                  className={`relative glass-card rounded-2xl p-6 space-y-5 card-hover overflow-hidden border ${plan.popular ? 'border-primary/50 ring-2 ring-primary/30 shadow-2xl shadow-primary/10 md:scale-[1.03]' : 'border-border/40'}`}>
                   {plan.popular && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-3 py-1 rounded-full bg-primary text-primary-foreground">{t('জনপ্রিয়', 'Popular')}</span>
+                    <>
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 pointer-events-none" />
+                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold px-3 py-1 rounded-full bg-gradient-to-r from-primary to-secondary text-primary-foreground shadow-lg uppercase tracking-wider">{t('জনপ্রিয়', 'Popular')}</span>
+                    </>
                   )}
-                  <div>
+                  <div className="relative">
                     <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
                     <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-3xl font-extrabold gradient-text">{plan.price}</span>
+                      <span className="text-4xl font-extrabold gradient-text">{plan.price}</span>
                       <span className="text-muted-foreground text-sm">{plan.period}</span>
                     </div>
                   </div>
-                  <ul className="space-y-2">
+                  <ul className="relative space-y-2.5">
                     {plan.features.map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Check className="w-4 h-4 text-primary shrink-0" /> {f}
+                      <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" /> <span>{f}</span>
                       </li>
                     ))}
                   </ul>
                   <Button onClick={() => handlePlanSelect(plan.id)}
-                    className={`w-full gap-2 ${plan.popular ? 'bg-primary hover:bg-primary/90 text-primary-foreground' : ''}`}
+                    className={`relative w-full gap-2 rounded-xl ${plan.popular ? 'bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-primary-foreground shadow-lg shadow-primary/30' : ''}`}
                     variant={plan.popular ? 'default' : 'outline'}>
                     {plan.cta} <ArrowRight className="w-4 h-4" />
                   </Button>
