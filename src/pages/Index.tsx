@@ -114,42 +114,45 @@ const Index = () => {
         style={viewMode === 'mobile' ? { maxWidth: '420px', boxShadow: '0 0 0 1px hsl(var(--border))', minHeight: '100vh' } : {}}
       >
         {/* Navbar */}
-        <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border">
-          <div className="max-w-6xl mx-auto flex items-center justify-between px-4 h-14 gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <BrandLogo size={28} />
-              <span className="font-bold text-lg gradient-text truncate">TIVO DEV</span>
-              <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-mono shrink-0">v{VERSION}</span>
-            </div>
+        <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/60 backdrop-blur-xl">
+          <div className="max-w-6xl mx-auto flex items-center justify-between px-3 sm:px-4 h-14 gap-2">
+            {/* LEFT: language + device toggles (always visible, mobile-friendly) */}
             <div className="flex items-center gap-1.5 shrink-0">
-              {/* Language switcher */}
               <button
                 onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors text-xs font-semibold text-muted-foreground hover:text-foreground"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-muted/40 hover:bg-muted/70 transition-colors text-xs font-semibold text-foreground"
                 aria-label="Toggle language"
               >
                 <Languages className="w-3.5 h-3.5" />
                 <span>{lang === 'bn' ? 'বাং' : 'EN'}</span>
               </button>
-              {/* View mode toggle (hidden on smaller screens — only useful on big ones) */}
-              <div className="hidden sm:flex items-center bg-muted/30 rounded-lg p-0.5">
+              <div className="flex items-center bg-muted/40 rounded-lg p-0.5">
                 <button
                   onClick={() => setViewMode('desktop')}
-                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'desktop' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'desktop' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                   aria-label="Desktop view"
                 >
                   <Monitor className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => setViewMode('mobile')}
-                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'mobile' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'mobile' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                   aria-label="Mobile view"
                 >
                   <Smartphone className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <Button onClick={() => navigate(user ? '/dashboard' : '/auth')} className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground" size="sm">
-                {user ? t('ড্যাশবোর্ড', 'Dashboard') : t('শুরু করুন', 'Get Started')} <ArrowRight className="w-3.5 h-3.5" />
+            </div>
+            {/* CENTER: brand */}
+            <div className="flex items-center gap-1.5 min-w-0 absolute left-1/2 -translate-x-1/2 pointer-events-none">
+              <BrandLogo size={26} />
+              <span className="font-bold text-base sm:text-lg gradient-text truncate">TIVO DEV</span>
+              <span className="hidden sm:inline text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-mono shrink-0">v{VERSION}</span>
+            </div>
+            {/* RIGHT: CTA */}
+            <div className="flex items-center shrink-0">
+              <Button onClick={() => navigate(user ? '/dashboard' : '/auth')} className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg shadow-primary/20" size="sm">
+                {user ? t('ড্যাশবোর্ড', 'Dashboard') : t('শুরু', 'Start')} <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
