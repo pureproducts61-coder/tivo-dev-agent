@@ -250,26 +250,29 @@ const Index = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {plans.map((plan, i) => (
                 <motion.div key={plan.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} viewport={{ once: true }}
-                  className={`relative glass-card rounded-2xl p-6 space-y-5 card-hover ${plan.popular ? 'border-primary/40 ring-1 ring-primary/20' : ''}`}>
+                  className={`relative glass-card rounded-2xl p-6 space-y-5 card-hover overflow-hidden border ${plan.popular ? 'border-primary/50 ring-2 ring-primary/30 shadow-2xl shadow-primary/10 md:scale-[1.03]' : 'border-border/40'}`}>
                   {plan.popular && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-3 py-1 rounded-full bg-primary text-primary-foreground">{t('জনপ্রিয়', 'Popular')}</span>
+                    <>
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 pointer-events-none" />
+                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold px-3 py-1 rounded-full bg-gradient-to-r from-primary to-secondary text-primary-foreground shadow-lg uppercase tracking-wider">{t('জনপ্রিয়', 'Popular')}</span>
+                    </>
                   )}
-                  <div>
+                  <div className="relative">
                     <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
                     <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-3xl font-extrabold gradient-text">{plan.price}</span>
+                      <span className="text-4xl font-extrabold gradient-text">{plan.price}</span>
                       <span className="text-muted-foreground text-sm">{plan.period}</span>
                     </div>
                   </div>
-                  <ul className="space-y-2">
+                  <ul className="relative space-y-2.5">
                     {plan.features.map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Check className="w-4 h-4 text-primary shrink-0" /> {f}
+                      <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" /> <span>{f}</span>
                       </li>
                     ))}
                   </ul>
                   <Button onClick={() => handlePlanSelect(plan.id)}
-                    className={`w-full gap-2 ${plan.popular ? 'bg-primary hover:bg-primary/90 text-primary-foreground' : ''}`}
+                    className={`relative w-full gap-2 rounded-xl ${plan.popular ? 'bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-primary-foreground shadow-lg shadow-primary/30' : ''}`}
                     variant={plan.popular ? 'default' : 'outline'}>
                     {plan.cta} <ArrowRight className="w-4 h-4" />
                   </Button>
