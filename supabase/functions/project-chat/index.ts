@@ -55,11 +55,36 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, systemContext, isAdmin, userPlan, attachments, model, dynamicVariables } = await req.json();
+    const { messages, systemContext, userPlan, attachments, model, dynamicVariables } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    // ===== AUTH: validate JWT and resolve admin role server-side (never trust client) =====
+    const authHeader = req.headers.get("Authorization") || "";
+    const jwt = authHeader.replace("Bearer ", "").trim();
+    let isAdmin = false;
+    try {
+      const sbSrv = createClient(
+        Deno.env.get("SUPABASE_URL") || "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
+      );
+      if (jwt) {
+        const { data: { user } } = await sbSrv.auth.getUser(jwt);
+        if (user) {
+          const { data: roleRow } = await sbSrv
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", user.id)
+            .eq("role", "admin")
+            .maybeSingle();
+          isAdmin = !!roleRow;
+        }
+      }
+    } catch (_e) {
+      // unauthenticated callers continue as non-admin
     }
 
     // ===== HYBRID DB CONFIG: prefer admin-overridden custom Supabase =====
