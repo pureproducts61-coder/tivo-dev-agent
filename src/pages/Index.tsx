@@ -199,12 +199,13 @@ const Index = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {features.map((f, i) => (
                 <motion.div key={f.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} viewport={{ once: true }}
-                  className="glass-card rounded-xl p-5 space-y-3 card-hover">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  className="group relative glass-card rounded-2xl p-5 space-y-3 card-hover overflow-hidden border border-border/40">
+                  <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center ring-1 ring-primary/20">
                     <f.icon className="w-5 h-5 text-primary" />
                   </div>
-                  <h3 className="font-semibold text-foreground">{f.title}</h3>
-                  <p className="text-sm text-muted-foreground">{f.desc}</p>
+                  <h3 className="relative font-semibold text-foreground">{f.title}</h3>
+                  <p className="relative text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
                 </motion.div>
               ))}
             </div>
