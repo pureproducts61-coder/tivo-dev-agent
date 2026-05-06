@@ -450,11 +450,49 @@ export type Database = {
         }
         Relationships: []
       }
+      user_secrets: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          user_id: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          user_id: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          user_id?: string
+          value?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      admin_set_user_plan: {
+        Args: {
+          _daily_credits: number
+          _monthly_credits: number
+          _payment_status?: string
+          _plan: string
+          _transaction_id?: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       consume_credit: { Args: { _amount?: number }; Returns: boolean }
       has_role: {
         Args: {
