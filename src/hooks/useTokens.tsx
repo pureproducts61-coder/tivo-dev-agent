@@ -28,6 +28,9 @@ const TokenContext = createContext<TokenContextType | undefined>(undefined);
 function purgeLegacyLocalStorage(userId: string) {
   const prefix = `tivo_${userId}_`;
   TOKEN_KEYS.forEach(key => localStorage.removeItem(`${prefix}${key}`));
+  // Remove pre-v7 global backend secret keys
+  localStorage.removeItem('tivo_backend_url');
+  localStorage.removeItem('tivo_master_secret');
 }
 
 export const TokenProvider = ({ children }: { children: ReactNode }) => {
