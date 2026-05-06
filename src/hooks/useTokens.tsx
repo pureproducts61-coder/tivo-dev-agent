@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface TokenSet {
   GITHUB_TOKEN: string;
@@ -13,62 +14,87 @@ const TOKEN_KEYS: (keyof TokenSet)[] = ['GITHUB_TOKEN', 'VERCEL_TOKEN', 'TAVILY_
 interface TokenContextType {
   tokens: TokenSet;
   getToken: (key: keyof TokenSet) => string;
-  setToken: (key: keyof TokenSet, value: string) => void;
-  clearAllTokens: () => void;
+  setToken: (key: keyof TokenSet, value: string) => Promise<void>;
+  clearAllTokens: () => Promise<void>;
   hasToken: (key: keyof TokenSet) => boolean;
+  loading: boolean;
 }
 
 const emptyTokens: TokenSet = { GITHUB_TOKEN: '', VERCEL_TOKEN: '', TAVILY_API_KEY: '', SUPABASE_CONFIG: '' };
 
 const TokenContext = createContext<TokenContextType | undefined>(undefined);
 
-function storagePrefix(userId: string) {
-  return `tivo_${userId}_`;
+// Legacy migration: remove old localStorage tokens once
+function purgeLegacyLocalStorage(userId: string) {
+  const prefix = `tivo_${userId}_`;
+  TOKEN_KEYS.forEach(key => localStorage.removeItem(`${prefix}${key}`));
 }
 
 export const TokenProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [tokens, setTokens] = useState<TokenSet>({ ...emptyTokens });
+  const [loading, setLoading] = useState(false);
 
-  // Load tokens when user changes
+  // Load tokens from server when user changes
   useEffect(() => {
     if (!user) {
       setTokens({ ...emptyTokens });
       return;
     }
-    const prefix = storagePrefix(user.id);
-    const loaded: any = {};
-    TOKEN_KEYS.forEach(key => {
-      loaded[key] = localStorage.getItem(`${prefix}${key}`) || '';
-    });
-    setTokens(loaded);
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('user_secrets')
+          .select('key,value')
+          .eq('user_id', user.id);
+        if (cancelled) return;
+        if (error) throw error;
+        const loaded: any = { ...emptyTokens };
+        (data || []).forEach((row: any) => {
+          if (TOKEN_KEYS.includes(row.key)) loaded[row.key] = row.value || '';
+        });
+        setTokens(loaded);
+        purgeLegacyLocalStorage(user.id);
+      } catch {
+        if (!cancelled) setTokens({ ...emptyTokens });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [user]);
 
   const getToken = useCallback((key: keyof TokenSet) => tokens[key], [tokens]);
 
-  const setToken = useCallback((key: keyof TokenSet, value: string) => {
+  const setToken = useCallback(async (key: keyof TokenSet, value: string) => {
     if (!user) return;
-    const prefix = storagePrefix(user.id);
     const trimmed = value.trim();
     if (trimmed) {
-      localStorage.setItem(`${prefix}${key}`, trimmed);
+      await supabase
+        .from('user_secrets')
+        .upsert({ user_id: user.id, key, value: trimmed }, { onConflict: 'user_id,key' });
     } else {
-      localStorage.removeItem(`${prefix}${key}`);
+      await supabase
+        .from('user_secrets')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('key', key);
     }
     setTokens(prev => ({ ...prev, [key]: trimmed }));
   }, [user]);
 
-  const clearAllTokens = useCallback(() => {
+  const clearAllTokens = useCallback(async () => {
     if (!user) return;
-    const prefix = storagePrefix(user.id);
-    TOKEN_KEYS.forEach(key => localStorage.removeItem(`${prefix}${key}`));
+    await supabase.from('user_secrets').delete().eq('user_id', user.id).in('key', TOKEN_KEYS as string[]);
     setTokens({ ...emptyTokens });
   }, [user]);
 
   const hasToken = useCallback((key: keyof TokenSet) => !!tokens[key], [tokens]);
 
   return (
-    <TokenContext.Provider value={{ tokens, getToken, setToken, clearAllTokens, hasToken }}>
+    <TokenContext.Provider value={{ tokens, getToken, setToken, clearAllTokens, hasToken, loading }}>
       {children}
     </TokenContext.Provider>
   );
