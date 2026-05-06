@@ -1,27 +1,39 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { getBackendUrl, getMasterSecret, setBackendConfig, clearBackendConfig, isBackendConfigured } from '@/lib/backend';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { getBackendUrl, setBackendUrl, clearBackendConfig, isBackendConfigured } from '@/lib/backend';
+import { useAuth } from '@/hooks/useAuth';
 
 interface BackendConfigContextType {
   backendUrl: string | null;
   isConfigured: boolean;
-  configure: (url: string, secret: string) => void;
-  disconnect: () => void;
+  configure: (url: string, _secretIgnored?: string) => Promise<void>;
+  disconnect: () => Promise<void>;
 }
 
 const BackendConfigContext = createContext<BackendConfigContextType | undefined>(undefined);
 
 export const BackendConfigProvider = ({ children }: { children: ReactNode }) => {
-  const [backendUrl, setUrl] = useState<string | null>(getBackendUrl);
-  const [configured, setConfigured] = useState(isBackendConfigured);
+  const { user } = useAuth();
+  const [backendUrl, setUrl] = useState<string | null>(null);
+  const [configured, setConfigured] = useState(false);
 
-  const configure = useCallback((url: string, secret: string) => {
-    setBackendConfig(url, secret);
+  useEffect(() => {
+    if (!user) { setUrl(null); setConfigured(false); return; }
+    (async () => {
+      const u = await getBackendUrl();
+      const c = await isBackendConfigured();
+      setUrl(u);
+      setConfigured(c);
+    })();
+  }, [user]);
+
+  const configure = useCallback(async (url: string) => {
+    await setBackendUrl(url);
     setUrl(url);
     setConfigured(true);
   }, []);
 
-  const disconnect = useCallback(() => {
-    clearBackendConfig();
+  const disconnect = useCallback(async () => {
+    await clearBackendConfig();
     setUrl(null);
     setConfigured(false);
   }, []);
