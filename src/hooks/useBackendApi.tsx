@@ -2,8 +2,12 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef, Re
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
-const getBackendUrl = () => import.meta.env.VITE_HF_SPACE_URL || import.meta.env.VITE_BACKEND_URL || localStorage.getItem('tivo_backend_url') || '';
-const getMasterSecret = () => import.meta.env.VITE_MASTER_SECRET || import.meta.env.VITE_HF_MASTER_SECRET || localStorage.getItem('tivo_master_secret') || '';
+// Backend URL comes from build-time env or per-user server-side storage (user_secrets).
+// The master secret is NEVER read on the client — backend-proxy edge function injects HF_MASTER_SECRET.
+let _runtimeBackendUrl = '';
+const getBackendUrl = () => import.meta.env.VITE_HF_SPACE_URL || import.meta.env.VITE_BACKEND_URL || _runtimeBackendUrl || '';
+const setRuntimeBackendUrl = (u: string) => { _runtimeBackendUrl = u || ''; };
+const getMasterSecret = () => '';
 
 export type ConnectionStatus = 'connected' | 'disconnected' | 'checking' | 'sleeping';
 
