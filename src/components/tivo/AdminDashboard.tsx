@@ -17,6 +17,7 @@ import {
 import { AdminPermissions } from './AdminPermissions';
 import { AdminProposals } from './AdminProposals';
 import { CustomDatabaseTester } from './CustomDatabaseTester';
+import { StorageSafetyPanel } from './StorageSafetyPanel';
 import { HealthCheckPanel } from './HealthCheckPanel';
 import { AIMemoryManager } from './AIMemoryManager';
 import { Sparkles, Brain, HeartPulse } from 'lucide-react';
@@ -802,7 +803,8 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
               {savingSysTokens ? <><Loader2 className="w-4 h-4 animate-spin" /> সেভ হচ্ছে...</> : <><Save className="w-4 h-4" /> সেভ করুন</>}
             </Button>
 
-            <div className="pt-3 border-t border-border/30">
+            <div className="pt-3 border-t border-border/30 space-y-4">
+              <StorageSafetyPanel />
               <CustomDatabaseTester />
             </div>
           </div>
