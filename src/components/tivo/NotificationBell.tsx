@@ -274,9 +274,20 @@ export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps
     return () => clearInterval(iv);
   }, [isAdmin, fetchAdminNotifications, fetchUserNotifications]);
 
-  const unreadCount = isAdmin && pendingProposalCount > 0 ? pendingProposalCount : notifications.filter(n => !n.read).length;
+  const visibleNotifications = filterDismissed(notifications);
+  const unreadCount = isAdmin && pendingProposalCount > 0 ? pendingProposalCount : visibleNotifications.filter(n => !n.read).length;
   const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  const clearAll = () => setNotifications(prev => prev.filter(n => n.id === 'conn-status'));
+  const dismissOne = (id: string) => {
+    setDismissed(prev => { const ns = new Set(prev); ns.add(id); saveDismissed(ns); return ns; });
+  };
+  const clearAll = () => {
+    setDismissed(prev => {
+      const ns = new Set(prev);
+      notifications.forEach(n => { if (n.id !== 'conn-status') ns.add(n.id); });
+      saveDismissed(ns);
+      return ns;
+    });
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
