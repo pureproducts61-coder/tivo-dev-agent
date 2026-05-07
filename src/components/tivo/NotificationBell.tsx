@@ -49,6 +49,14 @@ const typeColors: Record<string, string> = {
   proposal: 'text-primary',
 };
 
+const DISMISSED_KEY = 'tivo_dismissed_notifs_v1';
+const loadDismissed = (): Set<string> => {
+  try { return new Set(JSON.parse(localStorage.getItem(DISMISSED_KEY) || '[]')); } catch { return new Set(); }
+};
+const saveDismissed = (s: Set<string>) => {
+  try { localStorage.setItem(DISMISSED_KEY, JSON.stringify([...s].slice(-500))); } catch {}
+};
+
 export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps) => {
   const { isConnected, getLogs, status } = useBackendApi();
   const { isAdmin } = useAdmin();
@@ -57,6 +65,8 @@ export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps
   const [pendingProposalCount, setPendingProposalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed());
+  const filterDismissed = useCallback((arr: Notification[]) => arr.filter(n => !dismissed.has(n.id)), [dismissed]);
 
   const notifyBrowser = useCallback((title: string, body: string) => {
     if (!('Notification' in window)) return;
