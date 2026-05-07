@@ -482,6 +482,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_block_user: {
+        Args: { _block: boolean; _user_id: string }
+        Returns: boolean
+      }
       admin_set_user_plan: {
         Args: {
           _daily_credits: number
@@ -491,6 +495,10 @@ export type Database = {
           _transaction_id?: string
           _user_id: string
         }
+        Returns: boolean
+      }
+      admin_update_credit_limits: {
+        Args: { _daily: number; _monthly: number; _user_id: string }
         Returns: boolean
       }
       consume_credit: { Args: { _amount?: number }; Returns: boolean }
