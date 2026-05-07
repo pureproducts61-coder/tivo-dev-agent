@@ -49,6 +49,14 @@ const typeColors: Record<string, string> = {
   proposal: 'text-primary',
 };
 
+const DISMISSED_KEY = 'tivo_dismissed_notifs_v1';
+const loadDismissed = (): Set<string> => {
+  try { return new Set(JSON.parse(localStorage.getItem(DISMISSED_KEY) || '[]')); } catch { return new Set(); }
+};
+const saveDismissed = (s: Set<string>) => {
+  try { localStorage.setItem(DISMISSED_KEY, JSON.stringify([...s].slice(-500))); } catch {}
+};
+
 export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps) => {
   const { isConnected, getLogs, status } = useBackendApi();
   const { isAdmin } = useAdmin();
@@ -57,6 +65,8 @@ export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps
   const [pendingProposalCount, setPendingProposalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed());
+  const filterDismissed = useCallback((arr: Notification[]) => arr.filter(n => !dismissed.has(n.id)), [dismissed]);
 
   const notifyBrowser = useCallback((title: string, body: string) => {
     if (!('Notification' in window)) return;
@@ -264,9 +274,20 @@ export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps
     return () => clearInterval(iv);
   }, [isAdmin, fetchAdminNotifications, fetchUserNotifications]);
 
-  const unreadCount = isAdmin && pendingProposalCount > 0 ? pendingProposalCount : notifications.filter(n => !n.read).length;
+  const visibleNotifications = filterDismissed(notifications);
+  const unreadCount = isAdmin && pendingProposalCount > 0 ? pendingProposalCount : visibleNotifications.filter(n => !n.read).length;
   const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  const clearAll = () => setNotifications(prev => prev.filter(n => n.id === 'conn-status'));
+  const dismissOne = (id: string) => {
+    setDismissed(prev => { const ns = new Set(prev); ns.add(id); saveDismissed(ns); return ns; });
+  };
+  const clearAll = () => {
+    setDismissed(prev => {
+      const ns = new Set(prev);
+      notifications.forEach(n => { if (n.id !== 'conn-status') ns.add(n.id); });
+      saveDismissed(ns);
+      return ns;
+    });
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -302,37 +323,45 @@ export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps
           </div>
         </div>
         <ScrollArea className="max-h-80">
-          {notifications.length === 0 ? (
+          {visibleNotifications.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-8">কোনো নোটিফিকেশন নেই</p>
           ) : (
             <div className="divide-y divide-border/50">
-              {notifications.map(n => {
+              {visibleNotifications.map(n => {
                 const Icon = typeIcons[n.type] || Info;
                 return (
                   <motion.div
                     key={n.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className={`px-4 py-3 flex gap-3 hover:bg-muted/30 transition-colors ${n.action ? 'cursor-pointer' : ''} ${n.read ? 'opacity-50' : ''}`}
-                    onClick={() => {
-                      if (n.action === 'open-proposals') {
-                        setOpen(false);
-                        onOpenAdminProposals?.();
-                      }
-                    }}
+                    className={`px-4 py-3 flex gap-3 hover:bg-muted/30 transition-colors group ${n.read ? 'opacity-60' : ''}`}
                   >
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
                       n.read ? 'bg-muted/30' : 'bg-primary/10'
                     }`}>
                       <Icon className={`w-4 h-4 ${typeColors[n.type]}`} />
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div
+                      className={`min-w-0 flex-1 ${n.action ? 'cursor-pointer' : ''}`}
+                      onClick={() => {
+                        if (n.action === 'open-proposals') { setOpen(false); onOpenAdminProposals?.(); }
+                      }}
+                    >
                       <p className="text-xs font-medium text-foreground truncate">{n.title}</p>
                       <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{n.message}</p>
                       <p className="text-[10px] text-muted-foreground/60 mt-1">
                         {new Date(n.timestamp).toLocaleString('bn-BD', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}
                       </p>
                     </div>
+                    {n.id !== 'conn-status' && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); dismissOne(n.id); }}
+                        className="opacity-40 hover:opacity-100 transition-opacity self-start"
+                        aria-label="মুছুন"
+                      >
+                        <X className="w-3.5 h-3.5 text-muted-foreground" />
+                      </button>
+                    )}
                   </motion.div>
                 );
               })}

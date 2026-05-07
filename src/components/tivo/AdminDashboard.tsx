@@ -144,7 +144,7 @@ const MENU_ITEMS = [
 
 export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: AdminDashboardProps) => {
   const { user, session } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('home');
   const [payments, setPayments] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -169,7 +169,7 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
 
   useEffect(() => {
     if (open) {
-      setActiveTab(initialTab);
+      setActiveTab(initialTab && initialTab !== 'overview' ? initialTab : 'home');
       fetchPayments(); fetchUsers(); fetchSystemStatus(); fetchApiKeyStatus(); fetchSiteSettings(); checkRealTimeConnections(); fetchSysTokens();
     }
   }, [open, initialTab]);
@@ -291,36 +291,46 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
     const { error } = await supabase.from('payment_requests')
       .update({ status: action, reviewed_by: user?.id, updated_at: new Date().toISOString() } as any)
       .eq('id', paymentId);
-    if (!error) {
-      if (action === 'approved') {
-        const payment = payments.find(p => p.id === paymentId);
-        if (payment) {
-          await supabase.from('user_credits')
-            .update({ plan: payment.plan, daily_credits: payment.plan === 'pro' ? 9999 : 50, monthly_credits: payment.plan === 'pro' ? 99999 : 1000, payment_status: 'paid' } as any)
-            .eq('user_id', payment.user_id);
-        }
+    if (error) { toast({ variant: 'destructive', title: 'ত্রুটি', description: error.message }); return; }
+    if (action === 'approved') {
+      const payment = payments.find(p => p.id === paymentId);
+      if (payment) {
+        const daily = payment.plan === 'pro' ? 9999 : payment.plan === 'standard' ? 50 : 5;
+        const monthly = payment.plan === 'pro' ? 99999 : payment.plan === 'standard' ? 1000 : 50;
+        const { error: rpcErr } = await supabase.rpc('admin_set_user_plan' as any, {
+          _user_id: payment.user_id,
+          _plan: payment.plan,
+          _daily_credits: daily,
+          _monthly_credits: monthly,
+          _payment_status: 'paid',
+          _transaction_id: payment.transaction_id,
+        });
+        if (rpcErr) { toast({ variant: 'destructive', title: 'প্ল্যান আপডেট ব্যর্থ', description: rpcErr.message }); return; }
       }
-      toast({ title: action === 'approved' ? '✅ অনুমোদিত' : '❌ প্রত্যাখ্যাত' });
-      fetchPayments(); fetchUsers();
     }
+    toast({ title: action === 'approved' ? '✅ অনুমোদিত' : '❌ প্রত্যাখ্যাত' });
+    fetchPayments(); fetchUsers();
   };
 
-  const updateUserCredits = async (userId: string, field: string, value: number) => {
-    const { error } = await supabase.from('user_credits')
-      .update({ [field]: value, updated_at: new Date().toISOString() } as any)
-      .eq('user_id', userId);
-    if (!error) { toast({ title: '✅ আপডেট হয়েছে' }); fetchUsers(); }
+  const updateUserCredits = async (userId: string, field: 'daily_credits' | 'monthly_credits', value: number) => {
+    const u = users.find(x => x.user_id === userId);
+    if (!u) return;
+    const daily = field === 'daily_credits' ? value : u.daily_credits;
+    const monthly = field === 'monthly_credits' ? value : u.monthly_credits;
+    const { error } = await supabase.rpc('admin_update_credit_limits' as any, {
+      _user_id: userId, _daily: daily, _monthly: monthly,
+    });
+    if (error) { toast({ variant: 'destructive', title: 'ত্রুটি', description: error.message }); return; }
+    toast({ title: '✅ আপডেট হয়েছে' });
+    fetchUsers();
   };
 
   const blockUser = async (userId: string, currentPlan: string) => {
-    const newPlan = currentPlan === 'blocked' ? 'free' : 'blocked';
-    const { error } = await supabase.from('user_credits')
-      .update({ plan: newPlan, daily_credits: newPlan === 'blocked' ? 0 : 5, monthly_credits: newPlan === 'blocked' ? 0 : 50 } as any)
-      .eq('user_id', userId);
-    if (!error) {
-      toast({ title: newPlan === 'blocked' ? '🚫 ব্লক হয়েছে' : '✅ আনব্লক হয়েছে' });
-      fetchUsers();
-    }
+    const block = currentPlan !== 'blocked';
+    const { error } = await supabase.rpc('admin_block_user' as any, { _user_id: userId, _block: block });
+    if (error) { toast({ variant: 'destructive', title: 'ত্রুটি', description: error.message }); return; }
+    toast({ title: block ? '🚫 ব্লক হয়েছে' : '✅ আনব্লক হয়েছে' });
+    fetchUsers();
   };
 
   const saveApiKeys = async () => {
@@ -862,44 +872,53 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
     }
   };
 
+  const inHome = activeTab === 'home';
+  const currentItem = MENU_ITEMS.find(m => m.id === activeTab);
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="glass-card border-border/50 sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl">
         <DialogHeader className="px-5 pt-5 pb-2">
           <DialogTitle className="text-foreground flex items-center gap-2.5 text-base">
+            {!inHome && (
+              <button
+                onClick={() => setActiveTab('home')}
+                className="w-8 h-8 rounded-xl bg-muted/40 flex items-center justify-center hover:bg-muted/60 transition-colors"
+                aria-label="পিছনে"
+              >
+                <ChevronRight className="w-4 h-4 rotate-180 text-foreground" />
+              </button>
+            )}
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Settings2 className="w-4.5 h-4.5 text-primary" />
+              {currentItem ? <currentItem.icon className="w-4 h-4 text-primary" /> : <Settings2 className="w-4.5 h-4.5 text-primary" />}
             </div>
-            অ্যাডমিন ড্যাশবোর্ড
-            <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-mono ml-auto">v7.0</span>
+            {inHome ? 'অ্যাডমিন ড্যাশবোর্ড' : currentItem?.label}
+            <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-mono ml-auto">v7.1</span>
           </DialogTitle>
         </DialogHeader>
 
-        {/* Vertical menu + content */}
         <div className="px-5 pb-5">
-          {/* Menu as vertical list */}
-          <div className="space-y-1 mb-4">
-            {MENU_ITEMS.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setActiveTab(id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${
-                  activeTab === id
-                    ? 'bg-primary/10 text-primary border border-primary/20'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                }`}
-              >
-                <Icon className="w-4 h-4 shrink-0" />
-                <span className="text-xs font-medium flex-1">{label}</span>
-                <ChevronRight className={`w-3.5 h-3.5 transition-transform ${activeTab === id ? 'rotate-90 text-primary' : ''}`} />
-              </button>
-            ))}
-          </div>
-
-          {/* Active content */}
-          <div className="min-h-[200px]">
-            {renderContent()}
-          </div>
+          {inHome ? (
+            <div className="grid grid-cols-2 gap-3">
+              {MENU_ITEMS.filter(m => m.id !== 'home').map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className="group relative overflow-hidden rounded-2xl p-4 text-left bg-gradient-to-br from-primary/5 via-card to-accent/5 border border-border/40 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
+                    <Icon className="w-5 h-5 text-primary" />
+                  </div>
+                  <p className="text-xs font-semibold text-foreground">{label}</p>
+                  <ChevronRight className="absolute top-3 right-3 w-3.5 h-3.5 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="min-h-[200px]">
+              {renderContent()}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
