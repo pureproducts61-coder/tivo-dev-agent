@@ -144,7 +144,7 @@ const MENU_ITEMS = [
 
 export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: AdminDashboardProps) => {
   const { user, session } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('home');
   const [payments, setPayments] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -169,7 +169,7 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
 
   useEffect(() => {
     if (open) {
-      setActiveTab(initialTab);
+      setActiveTab(initialTab && initialTab !== 'overview' ? initialTab : 'home');
       fetchPayments(); fetchUsers(); fetchSystemStatus(); fetchApiKeyStatus(); fetchSiteSettings(); checkRealTimeConnections(); fetchSysTokens();
     }
   }, [open, initialTab]);
