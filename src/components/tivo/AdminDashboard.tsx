@@ -291,36 +291,46 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
     const { error } = await supabase.from('payment_requests')
       .update({ status: action, reviewed_by: user?.id, updated_at: new Date().toISOString() } as any)
       .eq('id', paymentId);
-    if (!error) {
-      if (action === 'approved') {
-        const payment = payments.find(p => p.id === paymentId);
-        if (payment) {
-          await supabase.from('user_credits')
-            .update({ plan: payment.plan, daily_credits: payment.plan === 'pro' ? 9999 : 50, monthly_credits: payment.plan === 'pro' ? 99999 : 1000, payment_status: 'paid' } as any)
-            .eq('user_id', payment.user_id);
-        }
+    if (error) { toast({ variant: 'destructive', title: 'ত্রুটি', description: error.message }); return; }
+    if (action === 'approved') {
+      const payment = payments.find(p => p.id === paymentId);
+      if (payment) {
+        const daily = payment.plan === 'pro' ? 9999 : payment.plan === 'standard' ? 50 : 5;
+        const monthly = payment.plan === 'pro' ? 99999 : payment.plan === 'standard' ? 1000 : 50;
+        const { error: rpcErr } = await supabase.rpc('admin_set_user_plan' as any, {
+          _user_id: payment.user_id,
+          _plan: payment.plan,
+          _daily_credits: daily,
+          _monthly_credits: monthly,
+          _payment_status: 'paid',
+          _transaction_id: payment.transaction_id,
+        });
+        if (rpcErr) { toast({ variant: 'destructive', title: 'প্ল্যান আপডেট ব্যর্থ', description: rpcErr.message }); return; }
       }
-      toast({ title: action === 'approved' ? '✅ অনুমোদিত' : '❌ প্রত্যাখ্যাত' });
-      fetchPayments(); fetchUsers();
     }
+    toast({ title: action === 'approved' ? '✅ অনুমোদিত' : '❌ প্রত্যাখ্যাত' });
+    fetchPayments(); fetchUsers();
   };
 
-  const updateUserCredits = async (userId: string, field: string, value: number) => {
-    const { error } = await supabase.from('user_credits')
-      .update({ [field]: value, updated_at: new Date().toISOString() } as any)
-      .eq('user_id', userId);
-    if (!error) { toast({ title: '✅ আপডেট হয়েছে' }); fetchUsers(); }
+  const updateUserCredits = async (userId: string, field: 'daily_credits' | 'monthly_credits', value: number) => {
+    const u = users.find(x => x.user_id === userId);
+    if (!u) return;
+    const daily = field === 'daily_credits' ? value : u.daily_credits;
+    const monthly = field === 'monthly_credits' ? value : u.monthly_credits;
+    const { error } = await supabase.rpc('admin_update_credit_limits' as any, {
+      _user_id: userId, _daily: daily, _monthly: monthly,
+    });
+    if (error) { toast({ variant: 'destructive', title: 'ত্রুটি', description: error.message }); return; }
+    toast({ title: '✅ আপডেট হয়েছে' });
+    fetchUsers();
   };
 
   const blockUser = async (userId: string, currentPlan: string) => {
-    const newPlan = currentPlan === 'blocked' ? 'free' : 'blocked';
-    const { error } = await supabase.from('user_credits')
-      .update({ plan: newPlan, daily_credits: newPlan === 'blocked' ? 0 : 5, monthly_credits: newPlan === 'blocked' ? 0 : 50 } as any)
-      .eq('user_id', userId);
-    if (!error) {
-      toast({ title: newPlan === 'blocked' ? '🚫 ব্লক হয়েছে' : '✅ আনব্লক হয়েছে' });
-      fetchUsers();
-    }
+    const block = currentPlan !== 'blocked';
+    const { error } = await supabase.rpc('admin_block_user' as any, { _user_id: userId, _block: block });
+    if (error) { toast({ variant: 'destructive', title: 'ত্রুটি', description: error.message }); return; }
+    toast({ title: block ? '🚫 ব্লক হয়েছে' : '✅ আনব্লক হয়েছে' });
+    fetchUsers();
   };
 
   const saveApiKeys = async () => {
