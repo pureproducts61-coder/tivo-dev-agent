@@ -323,37 +323,45 @@ export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps
           </div>
         </div>
         <ScrollArea className="max-h-80">
-          {notifications.length === 0 ? (
+          {visibleNotifications.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-8">কোনো নোটিফিকেশন নেই</p>
           ) : (
             <div className="divide-y divide-border/50">
-              {notifications.map(n => {
+              {visibleNotifications.map(n => {
                 const Icon = typeIcons[n.type] || Info;
                 return (
                   <motion.div
                     key={n.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className={`px-4 py-3 flex gap-3 hover:bg-muted/30 transition-colors ${n.action ? 'cursor-pointer' : ''} ${n.read ? 'opacity-50' : ''}`}
-                    onClick={() => {
-                      if (n.action === 'open-proposals') {
-                        setOpen(false);
-                        onOpenAdminProposals?.();
-                      }
-                    }}
+                    className={`px-4 py-3 flex gap-3 hover:bg-muted/30 transition-colors group ${n.read ? 'opacity-60' : ''}`}
                   >
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
                       n.read ? 'bg-muted/30' : 'bg-primary/10'
                     }`}>
                       <Icon className={`w-4 h-4 ${typeColors[n.type]}`} />
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div
+                      className={`min-w-0 flex-1 ${n.action ? 'cursor-pointer' : ''}`}
+                      onClick={() => {
+                        if (n.action === 'open-proposals') { setOpen(false); onOpenAdminProposals?.(); }
+                      }}
+                    >
                       <p className="text-xs font-medium text-foreground truncate">{n.title}</p>
                       <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{n.message}</p>
                       <p className="text-[10px] text-muted-foreground/60 mt-1">
                         {new Date(n.timestamp).toLocaleString('bn-BD', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}
                       </p>
                     </div>
+                    {n.id !== 'conn-status' && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); dismissOne(n.id); }}
+                        className="opacity-40 hover:opacity-100 transition-opacity self-start"
+                        aria-label="মুছুন"
+                      >
+                        <X className="w-3.5 h-3.5 text-muted-foreground" />
+                      </button>
+                    )}
                   </motion.div>
                 );
               })}
