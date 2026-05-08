@@ -701,7 +701,19 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
                           onClick={() => blockUser(u.user_id, u.plan)}>
                           {isBlocked ? <><UserCheck className="w-3 h-3" /> আনব্লক</> : <><Ban className="w-3 h-3" /> ব্লক</>}
                         </Button>
+                        {(() => {
+                          const isAdminUser = (userRoles[u.user_id] || []).includes('admin');
+                          return (
+                            <Button size="sm" variant={isAdminUser ? 'secondary' : 'default'} className="h-7 text-[10px] rounded-lg gap-1 shrink-0"
+                              onClick={() => toggleAdminRole(u.user_id, !isAdminUser)}>
+                              <Shield className="w-3 h-3" /> {isAdminUser ? 'অ্যাডমিন বাদ' : 'অ্যাডমিন বানাও'}
+                            </Button>
+                          );
+                        })()}
                       </div>
+                      {(userRoles[u.user_id] || []).includes('admin') && (
+                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-semibold inline-block">👑 Admin</span>
+                      )}
                     </div>
                   );
                 })}
