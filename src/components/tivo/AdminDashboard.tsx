@@ -511,9 +511,24 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground">রিয়েল-টাইম স্ট্যাটাস</h3>
-              <Button size="sm" variant="ghost" onClick={() => { fetchSystemStatus(); checkRealTimeConnections(); }} className="gap-1 text-xs rounded-xl">
-                <RefreshCw className="w-3.5 h-3.5" /> রিফ্রেশ
-              </Button>
+              <div className="flex gap-1">
+                <Button size="sm" variant="ghost" onClick={async () => {
+                  try {
+                    const { data, error } = await supabase.functions.invoke('codemap-sync', {
+                      headers: { Authorization: `Bearer ${session?.access_token}` },
+                    });
+                    if (error) throw error;
+                    toast({ title: '🪞 Codemap সিঙ্ক হয়েছে', description: `Repo: ${data?.results?.repo_tree?.files || 0} files | DB: ${Object.keys(data?.results?.db_schema?.tables || {}).length} tables` });
+                  } catch (e: any) {
+                    toast({ variant: 'destructive', title: 'Codemap sync ব্যর্থ', description: e.message });
+                  }
+                }} className="gap-1 text-xs rounded-xl">
+                  <Brain className="w-3.5 h-3.5" /> Codemap সিঙ্ক
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { fetchSystemStatus(); checkRealTimeConnections(); }} className="gap-1 text-xs rounded-xl">
+                  <RefreshCw className="w-3.5 h-3.5" /> রিফ্রেশ
+                </Button>
+              </div>
             </div>
             <div className="glass-card rounded-2xl p-4 space-y-3 border border-border/30">
               <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5"><Wifi className="w-3.5 h-3.5 text-primary" /> লাইভ কানেকশন</h4>
