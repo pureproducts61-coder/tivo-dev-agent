@@ -199,6 +199,42 @@ serve(async (req) => {
 
     const githubMemory = await readGithubMemory();
 
+    // ===== CROSS-SESSION BRIDGE + SELF-AWARENESS =====
+    let crossSessionBridge = "";
+    let selfAwareness = "";
+    if (activeSupabaseUrl && activeServiceKey) {
+      try {
+        const sb = createClient(activeSupabaseUrl, activeServiceKey);
+        // Latest 5 admin_strategy memories for cross-session continuity
+        if (isAdmin) {
+          const { data: mems } = await sb
+            .from("ai_memories")
+            .select("title, content, updated_at")
+            .eq("scope", "system")
+            .order("updated_at", { ascending: false })
+            .limit(5);
+          if (mems?.length) {
+            crossSessionBridge = "\n\n🧠 CROSS-SESSION BRIDGE (last admin discussions):\n" +
+              mems.map((m: any) => `• ${m.title}: ${String(m.content).slice(0, 300)}`).join("\n");
+          }
+        }
+        // Self-awareness: load codemap + db digest from ai_system_core
+        const { data: core } = await sb
+          .from("ai_system_core")
+          .select("kind, key, content, updated_at")
+          .in("kind", ["repo_tree", "db_schema"]);
+        if (core?.length) {
+          const repo = core.find((c: any) => c.kind === "repo_tree");
+          const db = core.find((c: any) => c.kind === "db_schema");
+          selfAwareness = "\n\n🪞 SELF-AWARENESS (you know what files & tables exist):\n";
+          if (repo) selfAwareness += `• Repo ${(repo.content as any).repo} — ${(repo.content as any).total_files} files indexed (last sync ${repo.updated_at})\n`;
+          if (db) selfAwareness += `• DB tables row-counts: ${JSON.stringify((db.content as any).tables).slice(0, 600)}\n`;
+          selfAwareness += "Use this to avoid re-asking what exists. If outdated, suggest admin run codemap-sync.";
+        }
+      } catch {}
+    }
+
+
     // Check AI provider keys + admin custom tokens
     let aiKeysStatus: Record<string, boolean> = {
       GEMINI_API_KEY: false,
@@ -358,6 +394,8 @@ CAPABILITIES
 
 ${liveStatus}
 ${memoryContext}
+${crossSessionBridge}
+${selfAwareness}
 ${dynamicVariablesContext}
 ${customDatabaseBootstrapGuide}
 
