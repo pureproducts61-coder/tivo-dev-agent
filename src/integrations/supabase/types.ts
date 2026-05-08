@@ -497,6 +497,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      admin_set_user_role: {
+        Args: {
+          _grant: boolean
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       admin_update_credit_limits: {
         Args: { _daily: number; _monthly: number; _user_id: string }
         Returns: boolean
