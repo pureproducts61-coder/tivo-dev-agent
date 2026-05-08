@@ -685,6 +685,7 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
                             </div>
                           </div>
                         </div>
+                      )}
                       {!isBlocked && (
                         <div className="flex gap-1.5 flex-wrap">
                           {(['free','standard','pro','enterprise'] as const).map(p => (
