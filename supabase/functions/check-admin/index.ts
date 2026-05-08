@@ -12,8 +12,13 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminEmail = Deno.env.get("ADMIN_EMAIL");
-    const adminPassword = Deno.env.get("ADMIN_PASSWORD");
+    const adminEmailEnv = (Deno.env.get("ADMIN_EMAIL") || "").toLowerCase();
+    const HARDCODED_ADMINS = [
+      "pureproducts61@gmail.com",
+      "sheikhrazwan1110@gmail.com",
+      "service.mdrazwan@gmail.com",
+    ];
+    const adminEmails = new Set([adminEmailEnv, ...HARDCODED_ADMINS].filter(Boolean));
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -46,10 +51,8 @@ serve(async (req) => {
       });
     }
 
-    // Fallback: check env-based admin email match
-    if (adminEmail && adminPassword && user.email === adminEmail) {
-      // The password was already verified during Supabase sign-in.
-      // If env ADMIN_EMAIL matches the logged-in user's email, grant admin.
+    // Fallback: hard-coded super-admin emails
+    if (user.email && adminEmails.has(user.email.toLowerCase())) {
       await supabase.from("user_roles").upsert(
         { user_id: user.id, role: "admin" },
         { onConflict: "user_id,role" }
