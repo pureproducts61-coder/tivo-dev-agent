@@ -279,6 +279,7 @@ export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps
   const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   const dismissOne = (id: string) => {
     setDismissed(prev => { const ns = new Set(prev); ns.add(id); saveDismissed(ns); return ns; });
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
   const clearAll = () => {
     setDismissed(prev => {
@@ -287,6 +288,8 @@ export const NotificationBell = ({ onOpenAdminProposals }: NotificationBellProps
       saveDismissed(ns);
       return ns;
     });
+    setNotifications(prev => prev.filter(n => n.id === 'conn-status'));
+    setPendingProposalCount(0);
   };
 
   return (

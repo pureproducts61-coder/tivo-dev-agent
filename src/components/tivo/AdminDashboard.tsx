@@ -148,6 +148,7 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
   const [payments, setPayments] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [userRoles, setUserRoles] = useState<Record<string, string[]>>({});
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
@@ -183,13 +184,29 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
 
   const fetchUsers = async () => {
     setLoadingUsers(true);
-    const [creditsRes, profilesRes] = await Promise.all([
+    const [creditsRes, profilesRes, rolesRes] = await Promise.all([
       supabase.from('user_credits').select('*').order('created_at', { ascending: false }),
       supabase.from('profiles').select('*'),
+      supabase.from('user_roles').select('user_id, role'),
     ]);
     setUsers(creditsRes.data || []);
     setProfiles(profilesRes.data || []);
+    const roleMap: Record<string, string[]> = {};
+    (rolesRes.data || []).forEach((r: any) => {
+      roleMap[r.user_id] = roleMap[r.user_id] || [];
+      roleMap[r.user_id].push(r.role);
+    });
+    setUserRoles(roleMap);
     setLoadingUsers(false);
+  };
+
+  const toggleAdminRole = async (userId: string, makeAdmin: boolean) => {
+    const { error } = await supabase.rpc('admin_set_user_role' as any, {
+      _user_id: userId, _role: 'admin', _grant: makeAdmin,
+    });
+    if (error) { toast({ variant: 'destructive', title: 'ত্রুটি', description: error.message }); return; }
+    toast({ title: makeAdmin ? '✅ অ্যাডমিন বানানো হয়েছে' : '✅ অ্যাডমিন প্রত্যাহার' });
+    fetchUsers();
   };
 
   const fetchSystemStatus = async () => {
@@ -669,6 +686,23 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
                           </div>
                         </div>
                       )}
+                      {!isBlocked && (
+                        <div className="flex gap-1.5 flex-wrap">
+                          {(['free','standard','pro','enterprise'] as const).map(p => (
+                            <Button key={p} size="sm" variant={u.plan === p ? 'default' : 'outline'}
+                              className="h-6 text-[9px] rounded-md px-2"
+                              onClick={async () => {
+                                const presets: any = { free:[5,50], standard:[50,1000], pro:[9999,99999], enterprise:[1000000,30000000] };
+                                const [d, m] = presets[p];
+                                const { error } = await supabase.rpc('admin_set_user_plan' as any, {
+                                  _user_id: u.user_id, _plan: p, _daily_credits: d, _monthly_credits: m, _payment_status: 'paid',
+                                });
+                                if (error) toast({ variant: 'destructive', title: 'ত্রুটি', description: error.message });
+                                else { toast({ title: `✅ প্ল্যান: ${p}` }); fetchUsers(); }
+                              }}>{p}</Button>
+                          ))}
+                        </div>
+                      )}
                       <div className="flex gap-2">
                         {!isBlocked && (
                           <>
@@ -684,7 +718,19 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
                           onClick={() => blockUser(u.user_id, u.plan)}>
                           {isBlocked ? <><UserCheck className="w-3 h-3" /> আনব্লক</> : <><Ban className="w-3 h-3" /> ব্লক</>}
                         </Button>
+                        {(() => {
+                          const isAdminUser = (userRoles[u.user_id] || []).includes('admin');
+                          return (
+                            <Button size="sm" variant={isAdminUser ? 'secondary' : 'default'} className="h-7 text-[10px] rounded-lg gap-1 shrink-0"
+                              onClick={() => toggleAdminRole(u.user_id, !isAdminUser)}>
+                              <Shield className="w-3 h-3" /> {isAdminUser ? 'অ্যাডমিন বাদ' : 'অ্যাডমিন বানাও'}
+                            </Button>
+                          );
+                        })()}
                       </div>
+                      {(userRoles[u.user_id] || []).includes('admin') && (
+                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-semibold inline-block">👑 Admin</span>
+                      )}
                     </div>
                   );
                 })}
