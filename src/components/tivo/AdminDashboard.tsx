@@ -148,6 +148,7 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
   const [payments, setPayments] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [userRoles, setUserRoles] = useState<Record<string, string[]>>({});
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
@@ -183,13 +184,29 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
 
   const fetchUsers = async () => {
     setLoadingUsers(true);
-    const [creditsRes, profilesRes] = await Promise.all([
+    const [creditsRes, profilesRes, rolesRes] = await Promise.all([
       supabase.from('user_credits').select('*').order('created_at', { ascending: false }),
       supabase.from('profiles').select('*'),
+      supabase.from('user_roles').select('user_id, role'),
     ]);
     setUsers(creditsRes.data || []);
     setProfiles(profilesRes.data || []);
+    const roleMap: Record<string, string[]> = {};
+    (rolesRes.data || []).forEach((r: any) => {
+      roleMap[r.user_id] = roleMap[r.user_id] || [];
+      roleMap[r.user_id].push(r.role);
+    });
+    setUserRoles(roleMap);
     setLoadingUsers(false);
+  };
+
+  const toggleAdminRole = async (userId: string, makeAdmin: boolean) => {
+    const { error } = await supabase.rpc('admin_set_user_role' as any, {
+      _user_id: userId, _role: 'admin', _grant: makeAdmin,
+    });
+    if (error) { toast({ variant: 'destructive', title: 'ত্রুটি', description: error.message }); return; }
+    toast({ title: makeAdmin ? '✅ অ্যাডমিন বানানো হয়েছে' : '✅ অ্যাডমিন প্রত্যাহার' });
+    fetchUsers();
   };
 
   const fetchSystemStatus = async () => {
