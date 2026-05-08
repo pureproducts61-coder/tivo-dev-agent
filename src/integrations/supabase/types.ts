@@ -113,6 +113,77 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_rollback_snapshots: {
+        Row: {
+          before_state: Json
+          created_at: string
+          id: string
+          proposal_id: string | null
+          reason: string | null
+          restored_at: string | null
+          target_table: string
+        }
+        Insert: {
+          before_state: Json
+          created_at?: string
+          id?: string
+          proposal_id?: string | null
+          reason?: string | null
+          restored_at?: string | null
+          target_table: string
+        }
+        Update: {
+          before_state?: Json
+          created_at?: string
+          id?: string
+          proposal_id?: string | null
+          reason?: string | null
+          restored_at?: string | null
+          target_table?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_rollback_snapshots_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "ai_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_system_core: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          key: string
+          kind: string
+          source: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          id?: string
+          key: string
+          kind: string
+          source?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          key?: string
+          kind?: string
+          source?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       automation_tasks: {
         Row: {
           created_at: string
