@@ -685,6 +685,22 @@ export const AdminDashboard = ({ open, onClose, initialTab = 'overview' }: Admin
                             </div>
                           </div>
                         </div>
+                      {!isBlocked && (
+                        <div className="flex gap-1.5 flex-wrap">
+                          {(['free','standard','pro','enterprise'] as const).map(p => (
+                            <Button key={p} size="sm" variant={u.plan === p ? 'default' : 'outline'}
+                              className="h-6 text-[9px] rounded-md px-2"
+                              onClick={async () => {
+                                const presets: any = { free:[5,50], standard:[50,1000], pro:[9999,99999], enterprise:[1000000,30000000] };
+                                const [d, m] = presets[p];
+                                const { error } = await supabase.rpc('admin_set_user_plan' as any, {
+                                  _user_id: u.user_id, _plan: p, _daily_credits: d, _monthly_credits: m, _payment_status: 'paid',
+                                });
+                                if (error) toast({ variant: 'destructive', title: 'ত্রুটি', description: error.message });
+                                else { toast({ title: `✅ প্ল্যান: ${p}` }); fetchUsers(); }
+                              }}>{p}</Button>
+                          ))}
+                        </div>
                       )}
                       <div className="flex gap-2">
                         {!isBlocked && (
